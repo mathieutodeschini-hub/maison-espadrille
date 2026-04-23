@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 
 export default function Scanner() {
   const [statut, setStatut] = useState('scan')
@@ -10,59 +11,42 @@ export default function Scanner() {
   const [eanManuel, setEanManuel] = useState('')
   const [saisieManuelle, setSaisieManuelle] = useState(false)
   const videoRef = useRef(null)
-  const streamRef = useRef(null)
-  const canvasRef = useRef(null)
-  const intervalRef = useRef(null)
+  const readerRef = useRef(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     const panierSauvegarde = localStorage.getItem('panier')
     if (panierSauvegarde) setPanier(JSON.parse(panierSauvegarde))
-    demarrerCamera()
-    return () => {
-      arreterCamera()
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
+    demarrerScanner()
+    return () => arreterScanner()
   }, [])
 
-  const demarrerCamera = async () => {
+  const demarrerScanner = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-      }
-      // Tente BarcodeDetector si disponible
-      if ('BarcodeDetector' in window) {
-        const detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a'] })
-        intervalRef.current = setInterval(async () => {
-          if (!videoRef.current || videoRef.current.readyState < 2) return
-          try {
-            const codes = await detector.detect(videoRef.current)
-            if (codes.length > 0) {
-              clearInterval(intervalRef.current)
-              chercheProduit(codes[0].rawValue)
-            }
-          } catch {}
-        }, 400)
-      }
+      const reader = new BrowserMultiFormatReader()
+      readerRef.current = reader
+      await reader.decodeFromVideoDevice(
+        undefined,
+        videoRef.current,
+        (result, error) => {
+          if (result) {
+            arreterScanner()
+            chercheProduit(result.getText())
+          }
+        }
+      )
     } catch {
       setStatut('erreur')
     }
   }
 
-  const arreterCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
+  const arreterScanner = () => {
+    if (readerRef.current) {
+      try { readerRef.current.reset() } catch {}
     }
-    if (intervalRef.current) clearInterval(intervalRef.current)
   }
 
   const chercheProduit = async (ean) => {
-    arreterCamera()
     setStatut('recherche')
     const eanNettoye = ean.trim()
     const { data } = await supabase
@@ -109,25 +93,23 @@ export default function Scanner() {
     setEanManuel('')
     setSaisieManuelle(false)
     setStatut('scan')
-    setTimeout(demarrerCamera, 300)
+    setTimeout(demarrerScanner, 300)
   }
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <button style={styles.btnRetour} onClick={() => { arreterCamera(); navigate('/catalogue') }}>← Retour</button>
+        <button style={styles.btnRetour} onClick={() => { arreterScanner(); navigate('/catalogue') }}>← Retour</button>
         <h1 style={styles.titre}>Scanner un produit</h1>
       </div>
 
       {statut === 'scan' && (
         <div style={styles.scanZone}>
           <div style={styles.videoWrapper}>
-            <video ref={videoRef} autoPlay playsInline muted style={styles.video} />
+            <video ref={videoRef} style={styles.video} />
             <div style={styles.viseur} />
           </div>
           <p style={styles.hint}>Pointez la caméra vers le code-barres</p>
-
-          {/* Saisie manuelle */}
           <button style={styles.btnManuel} onClick={() => setSaisieManuelle(p => !p)}>
             ⌨️ Saisir le code manuellement
           </button>

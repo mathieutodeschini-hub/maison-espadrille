@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
+    "@zxing/browser": "github:zxing-js/browser",
     "html5-qrcode": "^2.3.8",
     "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
