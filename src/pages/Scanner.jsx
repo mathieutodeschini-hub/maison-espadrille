@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { BrowserMultiFormatReader } from '@zxing/browser'
 
 export default function Scanner() {
   const [statut, setStatut] = useState('scan')
@@ -9,50 +8,78 @@ export default function Scanner() {
   const [qtys, setQtys] = useState({})
   const [panier, setPanier] = useState([])
   const [eanManuel, setEanManuel] = useState('')
-  const [saisieManuelle, setSaisieManuelle] = useState(false)
+  const [scanning, setScanning] = useState(false)
   const videoRef = useRef(null)
-  const readerRef = useRef(null)
+  const streamRef = useRef(null)
+  const detectingRef = useRef(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     const panierSauvegarde = localStorage.getItem('panier')
     if (panierSauvegarde) setPanier(JSON.parse(panierSauvegarde))
-    demarrerScanner()
-    return () => arreterScanner()
+    demarrerCamera()
+    return () => arreterCamera()
   }, [])
 
-  const demarrerScanner = async () => {
+  const demarrerCamera = async () => {
     try {
-      const reader = new BrowserMultiFormatReader()
-      readerRef.current = reader
-      await reader.decodeFromVideoDevice(
-        undefined,
-        videoRef.current,
-        (result, error) => {
-          if (result) {
-            arreterScanner()
-            chercheProduit(result.getText())
-          }
-        }
-      )
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+      setScanning(true)
+      detectingRef.current = true
+      lancerDetection()
     } catch {
       setStatut('erreur')
     }
   }
 
-  const arreterScanner = () => {
-    if (readerRef.current) {
-      try { readerRef.current.reset() } catch {}
+  const arreterCamera = () => {
+    detectingRef.current = false
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
     }
+  }
+
+  const lancerDetection = async () => {
+    if (!('BarcodeDetector' in window)) return
+
+    const detector = new window.BarcodeDetector({
+      formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39']
+    })
+
+    const loop = async () => {
+      if (!detectingRef.current || !videoRef.current) return
+      if (videoRef.current.readyState === 4) {
+        try {
+          const codes = await detector.detect(videoRef.current)
+          if (codes.length > 0) {
+            const ean = codes[0].rawValue
+            setEanManuel(ean)
+            detectingRef.current = false
+            arreterCamera()
+            setScanning(false)
+            await chercheProduit(ean)
+            return
+          }
+        } catch {}
+      }
+      requestAnimationFrame(loop)
+    }
+    requestAnimationFrame(loop)
   }
 
   const chercheProduit = async (ean) => {
     setStatut('recherche')
-    const eanNettoye = ean.trim()
     const { data } = await supabase
       .from('produits')
       .select('*')
-      .contains('ean', [eanNettoye])
+      .contains('ean', [ean.trim()])
       .single()
 
     if (data) {
@@ -67,7 +94,11 @@ export default function Scanner() {
 
   const soumettreEanManuel = (e) => {
     e.preventDefault()
-    if (eanManuel.trim()) chercheProduit(eanManuel.trim())
+    if (eanManuel.trim()) {
+      arreterCamera()
+      setScanning(false)
+      chercheProduit(eanManuel.trim())
+    }
   }
 
   const validerProduit = () => {
@@ -91,41 +122,38 @@ export default function Scanner() {
     setProduit(null)
     setQtys({})
     setEanManuel('')
-    setSaisieManuelle(false)
     setStatut('scan')
-    setTimeout(demarrerScanner, 300)
+    setTimeout(demarrerCamera, 300)
   }
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <button style={styles.btnRetour} onClick={() => { arreterScanner(); navigate('/catalogue') }}>← Retour</button>
+        <button style={styles.btnRetour} onClick={() => { arreterCamera(); navigate('/catalogue') }}>← Retour</button>
         <h1 style={styles.titre}>Scanner un produit</h1>
       </div>
 
       {statut === 'scan' && (
         <div style={styles.scanZone}>
           <div style={styles.videoWrapper}>
-            <video ref={videoRef} style={styles.video} />
+            <video ref={videoRef} autoPlay playsInline muted style={styles.video} />
             <div style={styles.viseur} />
+            {scanning && <div style={styles.scanLine} />}
           </div>
           <p style={styles.hint}>Pointez la caméra vers le code-barres</p>
-          <button style={styles.btnManuel} onClick={() => setSaisieManuelle(p => !p)}>
-            ⌨️ Saisir le code manuellement
-          </button>
-          {saisieManuelle && (
-            <form onSubmit={soumettreEanManuel} style={styles.formManuel}>
+
+          <form onSubmit={soumettreEanManuel} style={styles.formManuel}>
+            <div style={styles.inputRow}>
               <input
                 style={styles.inputEan}
                 type="number"
-                placeholder="Code EAN (ex: 3700000000001)"
+                placeholder="Ou saisir le code EAN..."
                 value={eanManuel}
                 onChange={e => setEanManuel(e.target.value)}
-                autoFocus
               />
-              <button style={styles.btn} type="submit">Rechercher</button>
-            </form>
-          )}
+              <button style={styles.btnRecherche} type="submit">→</button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -142,14 +170,16 @@ export default function Scanner() {
           <p style={styles.message}>Caméra inaccessible</p>
           <p style={styles.hint}>Vérifiez les autorisations dans Réglages → Safari → Caméra</p>
           <form onSubmit={soumettreEanManuel} style={styles.formManuel}>
-            <input
-              style={styles.inputEan}
-              type="number"
-              placeholder="Saisir le code EAN manuellement"
-              value={eanManuel}
-              onChange={e => setEanManuel(e.target.value)}
-            />
-            <button style={styles.btn} type="submit">Rechercher</button>
+            <div style={styles.inputRow}>
+              <input
+                style={styles.inputEan}
+                type="number"
+                placeholder="Saisir le code EAN manuellement"
+                value={eanManuel}
+                onChange={e => setEanManuel(e.target.value)}
+              />
+              <button style={styles.btnRecherche} type="submit">→</button>
+            </div>
           </form>
           <button style={styles.btnSecondaire} onClick={() => navigate('/catalogue')}>Retour au catalogue</button>
         </div>
@@ -159,6 +189,7 @@ export default function Scanner() {
         <div style={styles.centre}>
           <div style={styles.emoji}>🔍</div>
           <p style={styles.message}>Produit introuvable</p>
+          <p style={styles.hint}>Code scanné : <strong>{eanManuel}</strong></p>
           <p style={styles.hint}>Ce code EAN ne correspond à aucun produit du catalogue.</p>
           <button style={styles.btn} onClick={rescan}>Scanner à nouveau</button>
           <button style={styles.btnSecondaire} onClick={() => navigate('/catalogue')}>Retour au catalogue</button>
@@ -218,10 +249,12 @@ const styles = {
   videoWrapper: { position: 'relative', width: '100%', maxWidth: '400px', borderRadius: '16px', overflow: 'hidden', background: '#000', aspectRatio: '4/3' },
   video: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   viseur: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '220px', height: '110px', border: '2px solid rgba(255,255,255,0.9)', borderRadius: '8px', boxShadow: '0 0 0 1000px rgba(0,0,0,0.35)' },
+  scanLine: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '200px', height: '2px', background: 'rgba(255,100,100,0.8)', animation: 'none' },
   hint: { fontSize: '0.85rem', color: '#9B8B7A', textAlign: 'center' },
-  btnManuel: { background: 'none', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.6rem 1rem', fontSize: '0.85rem', cursor: 'pointer', color: '#8B6F47' },
-  formManuel: { display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', maxWidth: '400px' },
-  inputEan: { border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.85rem 1rem', fontSize: '1rem', outline: 'none', width: '100%', boxSizing: 'border-box' },
+  formManuel: { width: '100%', maxWidth: '400px' },
+  inputRow: { display: 'flex', gap: '0.5rem' },
+  inputEan: { flex: 1, border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.85rem 1rem', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' },
+  btnRecherche: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '8px', padding: '0 1.25rem', fontSize: '1.2rem', cursor: 'pointer' },
   centre: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: '1rem' },
   emoji: { fontSize: '3rem' },
   message: { fontSize: '1.1rem', fontWeight: '700', color: '#1A1209' },
