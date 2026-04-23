@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import Navbar from '../components/Navbar'
 
 const FRANCO = 1500
 const MIN_PAIRES = 10
@@ -13,6 +14,7 @@ export default function Panier() {
   const [confirmation, setConfirmation] = useState(false)
   const [commande, setCommande] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [dernierTotal, setDernierTotal] = useState({ paires: 0, ht: 0 })
   const navigate = useNavigate()
 
   const totalPaires = panier.reduce((sum, l) =>
@@ -67,6 +69,7 @@ export default function Panier() {
       total_paires: totalPaires,
     })
 
+    setDernierTotal({ paires: totalPaires, ht: totalHT })
     localStorage.removeItem('panier')
     setPanier([])
     setConfirmation(false)
@@ -75,7 +78,7 @@ export default function Panier() {
   }
 
   if (commande) return (
-    <div style={styles.container}>
+    <div style={styles.succesContainer}>
       <div style={styles.succes}>
         <div style={styles.succesCircle}>✓</div>
         <h2 style={styles.succesTitre}>Commande envoyée</h2>
@@ -85,19 +88,22 @@ export default function Panier() {
         </p>
         <div style={styles.succesInfo}>
           <div style={styles.succesInfoLigne}>
-            <span>Total paires</span><span>{totalPaires}</span>
+            <span>Total paires</span><span>{dernierTotal.paires}</span>
           </div>
           <div style={styles.succesInfoLigne}>
-            <span>Total HT</span><span>{totalHT.toFixed(2)} €</span>
+            <span>Total HT</span><span>{dernierTotal.ht.toFixed(2)} €</span>
           </div>
           <div style={styles.succesInfoLigne}>
-            <span>Total TTC</span><span>{(totalHT * 1.2).toFixed(2)} €</span>
+            <span>TVA 20%</span><span>{(dernierTotal.ht * 0.2).toFixed(2)} €</span>
+          </div>
+          <div style={{ ...styles.succesInfoLigne, ...styles.succesInfoTotal }}>
+            <span>Total TTC</span><span>{(dernierTotal.ht * 1.2).toFixed(2)} €</span>
           </div>
         </div>
-        <button style={styles.btn} onClick={() => navigate('/accueil')}>
+        <button style={styles.btnBlanc} onClick={() => navigate('/accueil')}>
           Retour à l'accueil
         </button>
-        <button style={styles.btnSecondaire} onClick={() => navigate('/historique')}>
+        <button style={styles.btnTransparent} onClick={() => navigate('/historique')}>
           Voir mes commandes
         </button>
       </div>
@@ -190,6 +196,8 @@ export default function Panier() {
         </>
       )}
 
+      <Navbar panierCount={totalPanier} />
+
       {confirmation && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setConfirmation(false)}>
           <div style={styles.modal}>
@@ -214,7 +222,8 @@ export default function Panier() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#F5EFE6' },
+  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '80px' },
+  succesContainer: { minHeight: '100vh', background: '#2C1A0E' },
   header: { background: 'white', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
   btnRetour: { background: 'none', border: 'none', fontSize: '1rem', cursor: 'pointer', color: '#8B6F47' },
   titre: { fontFamily: 'Georgia, serif', fontSize: '1.1rem', color: '#1A1209' },
@@ -232,7 +241,7 @@ const styles = {
   tailleItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' },
   tailleLabel: { fontSize: '0.7rem', fontWeight: '700', color: '#9B8B7A' },
   tailleControls: { display: 'flex', alignItems: 'center', gap: '0.25rem' },
-  btnQty: { background: '#F5EFE6', border: 'none', borderRadius: '4px', width: '24px', height: '24px', fontSize: '1rem', cursor: 'pointer', color: '#1A1209', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600' },
+  btnQty: { background: '#F5EFE6', border: 'none', borderRadius: '4px', width: '26px', height: '26px', fontSize: '1rem', cursor: 'pointer', color: '#1A1209', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600' },
   tailleQty: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209', minWidth: '20px', textAlign: 'center' },
   lignePrixRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F5EFE6', paddingTop: '0.5rem' },
   ligneQtyTotal: { fontSize: '0.8rem', color: '#9B8B7A' },
@@ -245,13 +254,15 @@ const styles = {
   totalLigne: { display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', padding: '0.3rem 0', color: '#1A1209' },
   totalTTC: { fontWeight: '700', fontSize: '1rem', borderTop: '1px solid #E8DDD0', marginTop: '0.5rem', paddingTop: '0.75rem' },
   btn: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%', marginBottom: '0.5rem' },
-  btnSecondaire: { background: 'white', color: '#1A1209', border: '1px solid #E8DDD0', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', cursor: 'pointer', width: '100%' },
-  succes: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', gap: '1rem', minHeight: '100vh', background: '#2C1A0E' },
+  succes: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', gap: '1rem' },
   succesCircle: { width: '80px', height: '80px', borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'white', marginBottom: '0.5rem' },
   succesTitre: { fontFamily: 'Georgia, serif', fontSize: '1.8rem', color: 'white', textAlign: 'center' },
   succesMsg: { fontSize: '0.95rem', color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 1.7, maxWidth: '320px' },
   succesInfo: { background: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1rem', width: '100%', maxWidth: '320px', marginBottom: '0.5rem' },
-  succesInfoLigne: { display: 'flex', justifyContent: 'space-between', color: 'white', fontSize: '0.9rem', padding: '0.3rem 0' },
+  succesInfoLigne: { display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', padding: '0.3rem 0' },
+  succesInfoTotal: { color: 'white', fontWeight: '700', fontSize: '1rem', borderTop: '1px solid rgba(255,255,255,0.15)', marginTop: '0.3rem', paddingTop: '0.5rem' },
+  btnBlanc: { background: 'white', color: '#1A1209', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%', maxWidth: '320px' },
+  btnTransparent: { background: 'none', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', cursor: 'pointer', width: '100%', maxWidth: '320px' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' },
   modal: { background: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', width: '100%' },
   modalTitre: { fontFamily: 'Georgia, serif', fontSize: '1.2rem', color: '#1A1209', marginBottom: '1rem' },

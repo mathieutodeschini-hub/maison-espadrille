@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import Navbar from '../components/Navbar'
 
 export default function Recherche() {
   const [query, setQuery] = useState('')
@@ -18,10 +19,7 @@ export default function Recherche() {
     e?.preventDefault()
     if (!query.trim()) return
     const q = query.trim().toLowerCase()
-    const { data } = await supabase
-      .from('produits')
-      .select('*')
-      .eq('actif', true)
+    const { data } = await supabase.from('produits').select('*').eq('actif', true)
     if (data) {
       const filtres = data.filter(p =>
         p.nom?.toLowerCase().includes(q) ||
@@ -38,6 +36,14 @@ export default function Recherche() {
     setProduitOuvert(p)
     const ligne = panier.find(l => l.id === p.id)
     setQtys(ligne ? { ...ligne.qtys } : {})
+  }
+
+  const updateQty = (taille, delta) => {
+    setQtys(prev => {
+      const current = parseInt(prev[taille]) || 0
+      const next = Math.max(0, current + delta)
+      return { ...prev, [taille]: next }
+    })
   }
 
   const validerProduit = () => {
@@ -66,9 +72,6 @@ export default function Recherche() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.logo}>LME</h1>
-        <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
-          🛒 {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
-        </button>
       </div>
 
       <div style={styles.searchSection}>
@@ -128,14 +131,7 @@ export default function Recherche() {
         </div>
       )}
 
-      <div style={styles.navbar}>
-        <button style={styles.navBtn} onClick={() => navigate('/catalogue')}>📦 Catalogue</button>
-        <button style={{ ...styles.navBtn, ...styles.navActif }}>🔍 Recherche</button>
-        <button style={styles.navBtn} onClick={() => navigate('/panier')}>
-          🛒 Panier {totalPanier > 0 ? `(${totalPanier})` : ''}
-        </button>
-        <button style={styles.navBtn} onClick={() => navigate('/historique')}>📋 Historique</button>
-      </div>
+      <Navbar panierCount={totalPanier} />
 
       {produitOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setProduitOuvert(null)}>
@@ -151,14 +147,11 @@ export default function Recherche() {
               {produitOuvert.tailles?.map(t => (
                 <div key={t} style={styles.sizeItem}>
                   <div style={styles.sizeLabel}>T.{t}</div>
-                  <input
-                    style={styles.sizeInput}
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={qtys[t] || ''}
-                    onChange={e => setQtys(p => ({ ...p, [t]: e.target.value }))}
-                  />
+                  <div style={styles.sizeControls}>
+                    <button style={styles.btnQty} onClick={() => updateQty(t, -1)}>−</button>
+                    <span style={styles.sizeQty}>{parseInt(qtys[t]) || 0}</span>
+                    <button style={styles.btnQty} onClick={() => updateQty(t, 1)}>+</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -177,14 +170,12 @@ export default function Recherche() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '70px' },
+  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '80px' },
   header: { background: 'white', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
   logo: { fontFamily: 'Georgia, serif', fontSize: '1.4rem', color: '#1A1209' },
-  btnPanier: { background: '#F5EFE6', border: 'none', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '1.2rem', cursor: 'pointer', position: 'relative' },
-  badge: { position: 'absolute', top: '-4px', right: '-4px', background: '#C0392B', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   searchSection: { padding: '1.5rem 1rem 1rem' },
   form: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
-  input: { border: '1px solid #E8DDD0', borderRadius: '10px', padding: '0.9rem 1rem', fontSize: '1rem', outline: 'none', width: '100%', boxSizing: 'border-box', background: 'white' },
+  input: { border: '1px solid #E8DDD0', borderRadius: '10px', padding: '0.9rem 1rem', fontSize: '1rem', outline: 'none', width: '100%', boxSizing: 'border-box', background: 'white', color: '#1A1209' },
   btnRecherche: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '10px', padding: '0.9rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
   aide: { padding: '0 1rem' },
   aideTitre: { fontSize: '0.85rem', color: '#9B8B7A', marginBottom: '0.75rem', fontWeight: '600' },
@@ -205,9 +196,6 @@ const styles = {
   cardNom: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209', margin: '0.1rem 0' },
   cardPrix: { fontSize: '0.85rem', color: '#8B6F47', fontWeight: '600' },
   cardBadge: { background: '#8B6F47', color: 'white', borderRadius: '20px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: '700', whiteSpace: 'nowrap' },
-  navbar: { position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', display: 'flex', borderTop: '1px solid #E8DDD0', zIndex: 10 },
-  navBtn: { flex: 1, background: 'none', border: 'none', padding: '0.75rem 0.25rem', fontSize: '0.65rem', cursor: 'pointer', color: '#9B8B7A' },
-  navActif: { color: '#1A1209', fontWeight: '700' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' },
   modal: { background: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', width: '100%', maxHeight: '85vh', overflowY: 'auto' },
   modalPhoto: { width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '12px', marginBottom: '1rem' },
@@ -215,10 +203,12 @@ const styles = {
   modalRef: { fontSize: '0.75rem', color: '#9B8B7A', fontWeight: '600' },
   modalNom: { fontSize: '1.1rem', fontWeight: '700', color: '#1A1209', margin: '0.25rem 0' },
   modalPrix: { fontSize: '0.95rem', color: '#8B6F47', fontWeight: '600', marginBottom: '1rem' },
-  sizesGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' },
-  sizeItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' },
+  sizesGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' },
+  sizeItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' },
   sizeLabel: { fontSize: '0.75rem', fontWeight: '700', color: '#9B8B7A' },
-  sizeInput: { width: '100%', textAlign: 'center', border: '1px solid #E8DDD0', borderRadius: '6px', padding: '0.5rem 0.25rem', fontSize: '0.9rem', outline: 'none' },
+  sizeControls: { display: 'flex', alignItems: 'center', gap: '0.25rem' },
+  btnQty: { background: '#F5EFE6', border: 'none', borderRadius: '6px', width: '28px', height: '28px', fontSize: '1.1rem', cursor: 'pointer', color: '#1A1209', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600' },
+  sizeQty: { fontSize: '1rem', fontWeight: '600', color: '#1A1209', minWidth: '22px', textAlign: 'center' },
   modalFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   modalTotal: { fontSize: '0.9rem', color: '#9B8B7A' },
   btnValider: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '8px', padding: '0.75rem 1.5rem', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer' },
