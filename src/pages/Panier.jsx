@@ -32,10 +32,20 @@ export default function Panier() {
     localStorage.setItem('panier', JSON.stringify(nouveau))
   }
 
+  const updateQty = (id, taille, delta) => {
+    const nouveau = panier.map(l => {
+      if (l.id !== id) return l
+      const current = parseInt(l.qtys[taille]) || 0
+      const next = Math.max(0, current + delta)
+      return { ...l, qtys: { ...l.qtys, [taille]: next } }
+    }).filter(l => Object.values(l.qtys).reduce((a, b) => a + (parseInt(b) || 0), 0) > 0)
+    setPanier(nouveau)
+    localStorage.setItem('panier', JSON.stringify(nouveau))
+  }
+
   const validerCommande = async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
     const lignes = panier.map(l => {
       const qty = Object.values(l.qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)
@@ -67,10 +77,29 @@ export default function Panier() {
   if (commande) return (
     <div style={styles.container}>
       <div style={styles.succes}>
-        <div style={styles.succesEmoji}>✅</div>
-        <h2 style={styles.succesTitre}>Commande envoyée !</h2>
-        <p style={styles.succesMsg}>Votre commande a bien été transmise. Votre représentant la traitera dans les plus brefs délais.</p>
-        <button style={styles.btn} onClick={() => navigate('/catalogue')}>Retour au catalogue</button>
+        <div style={styles.succesCircle}>✓</div>
+        <h2 style={styles.succesTitre}>Commande envoyée</h2>
+        <p style={styles.succesMsg}>
+          Votre commande a bien été transmise à votre représentant.
+          Elle sera traitée dans les plus brefs délais.
+        </p>
+        <div style={styles.succesInfo}>
+          <div style={styles.succesInfoLigne}>
+            <span>Total paires</span><span>{totalPaires}</span>
+          </div>
+          <div style={styles.succesInfoLigne}>
+            <span>Total HT</span><span>{totalHT.toFixed(2)} €</span>
+          </div>
+          <div style={styles.succesInfoLigne}>
+            <span>Total TTC</span><span>{(totalHT * 1.2).toFixed(2)} €</span>
+          </div>
+        </div>
+        <button style={styles.btn} onClick={() => navigate('/accueil')}>
+          Retour à l'accueil
+        </button>
+        <button style={styles.btnSecondaire} onClick={() => navigate('/historique')}>
+          Voir mes commandes
+        </button>
       </div>
     </div>
   )
@@ -78,7 +107,7 @@ export default function Panier() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <button style={styles.btnRetour} onClick={() => navigate('/catalogue')}>← Retour</button>
+        <button style={styles.btnRetour} onClick={() => navigate('/accueil')}>← Retour</button>
         <h1 style={styles.titre}>Mon panier</h1>
       </div>
 
@@ -95,17 +124,31 @@ export default function Panier() {
               const qty = Object.values(l.qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)
               return (
                 <div key={l.id} style={styles.ligne}>
-                  <div style={styles.ligneInfo}>
-                    <div style={styles.ligneNom}>{l.nom} — {l.coloris}</div>
-                    <div style={styles.ligneRef}>{l.reference}</div>
-                    <div style={styles.ligneTailles}>
-                      {Object.entries(l.qtys).filter(([, v]) => parseInt(v) > 0).map(([t, v]) => `T${t}×${v}`).join('  ')}
+                  <div style={styles.ligneHeader}>
+                    <div style={styles.ligneInfo}>
+                      <div style={styles.ligneNom}>{l.nom} — {l.coloris}</div>
+                      <div style={styles.ligneRef}>{l.reference}</div>
                     </div>
-                  </div>
-                  <div style={styles.ligneDroite}>
-                    <div style={styles.ligneQty}>{qty} paires</div>
-                    <div style={styles.lignePrix}>{(qty * l.prix).toFixed(2)} €</div>
                     <button style={styles.btnSupprimer} onClick={() => supprimerLigne(l.id)}>✕</button>
+                  </div>
+                  <div style={styles.tailles}>
+                    {l.tailles?.map(t => {
+                      const q = parseInt(l.qtys[t]) || 0
+                      return (
+                        <div key={t} style={styles.tailleItem}>
+                          <div style={styles.tailleLabel}>T.{t}</div>
+                          <div style={styles.tailleControls}>
+                            <button style={styles.btnQty} onClick={() => updateQty(l.id, t, -1)}>−</button>
+                            <span style={styles.tailleQty}>{q}</span>
+                            <button style={styles.btnQty} onClick={() => updateQty(l.id, t, 1)}>+</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={styles.lignePrixRow}>
+                    <span style={styles.ligneQtyTotal}>{qty} paires</span>
+                    <span style={styles.lignePrix}>{(qty * l.prix).toFixed(2)} €</span>
                   </div>
                 </div>
               )
@@ -131,11 +174,13 @@ export default function Panier() {
               <div style={styles.totalLigne}><span>Total paires</span><span>{totalPaires}</span></div>
               <div style={styles.totalLigne}><span>Total HT</span><span>{totalHT.toFixed(2)} €</span></div>
               <div style={styles.totalLigne}><span>TVA 20%</span><span>{(totalHT * 0.2).toFixed(2)} €</span></div>
-              <div style={{ ...styles.totalLigne, ...styles.totalTTC }}><span>Total TTC</span><span>{(totalHT * 1.2).toFixed(2)} €</span></div>
+              <div style={{ ...styles.totalLigne, ...styles.totalTTC }}>
+                <span>Total TTC</span><span>{(totalHT * 1.2).toFixed(2)} €</span>
+              </div>
             </div>
 
             <button
-              style={{ ...styles.btn, opacity: (!minPairesOk) ? 0.4 : 1 }}
+              style={{ ...styles.btn, opacity: !minPairesOk ? 0.4 : 1 }}
               disabled={!minPairesOk}
               onClick={() => setConfirmation(true)}
             >
@@ -148,12 +193,12 @@ export default function Panier() {
       {confirmation && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setConfirmation(false)}>
           <div style={styles.modal}>
-            <h2 style={styles.modalTitre}>Confirmer la commande</h2>
+            <h2 style={styles.modalTitre}>Bon pour accord</h2>
             <p style={styles.modalMsg}>
-              En validant, vous donnez votre <strong>bon pour accord</strong> pour cette commande de <strong>{totalPaires} paires</strong> d'un montant de <strong>{totalHT.toFixed(2)} € HT</strong>.
+              En confirmant, vous validez votre commande de <strong>{totalPaires} paires</strong> pour un montant de <strong>{totalHT.toFixed(2)} € HT</strong>.
             </p>
             <p style={styles.modalMsg}>
-              Votre commande sera transmise immédiatement à votre représentant qui la saisira dans les plus brefs délais.
+              Elle sera transmise immédiatement à votre représentant qui la saisira dans les plus brefs délais.
             </p>
             <div style={styles.modalBtns}>
               <button style={styles.btnAnnuler} onClick={() => setConfirmation(false)}>Annuler</button>
@@ -177,15 +222,21 @@ const styles = {
   videEmoji: { fontSize: '3rem' },
   videMsg: { fontSize: '1.1rem', color: '#9B8B7A' },
   lignes: { padding: '1rem' },
-  ligne: { background: 'white', borderRadius: '12px', padding: '1rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' },
+  ligne: { background: 'white', borderRadius: '12px', padding: '1rem', marginBottom: '0.75rem' },
+  ligneHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' },
   ligneInfo: { flex: 1 },
   ligneNom: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209' },
-  ligneRef: { fontSize: '0.75rem', color: '#9B8B7A', margin: '0.1rem 0' },
-  ligneTailles: { fontSize: '0.75rem', color: '#8B6F47', marginTop: '0.25rem' },
-  ligneDroite: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' },
-  ligneQty: { fontSize: '0.8rem', color: '#9B8B7A' },
-  lignePrix: { fontSize: '0.9rem', fontWeight: '700', color: '#1A1209' },
-  btnSupprimer: { background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: '0.9rem', padding: '0' },
+  ligneRef: { fontSize: '0.75rem', color: '#9B8B7A', marginTop: '0.1rem' },
+  btnSupprimer: { background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: '1rem', padding: '0 0 0 0.5rem' },
+  tailles: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' },
+  tailleItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' },
+  tailleLabel: { fontSize: '0.7rem', fontWeight: '700', color: '#9B8B7A' },
+  tailleControls: { display: 'flex', alignItems: 'center', gap: '0.25rem' },
+  btnQty: { background: '#F5EFE6', border: 'none', borderRadius: '4px', width: '24px', height: '24px', fontSize: '1rem', cursor: 'pointer', color: '#1A1209', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600' },
+  tailleQty: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209', minWidth: '20px', textAlign: 'center' },
+  lignePrixRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F5EFE6', paddingTop: '0.5rem' },
+  ligneQtyTotal: { fontSize: '0.8rem', color: '#9B8B7A' },
+  lignePrix: { fontSize: '0.95rem', fontWeight: '700', color: '#1A1209' },
   recap: { padding: '0 1rem 2rem' },
   contraintes: { background: 'white', borderRadius: '12px', padding: '1rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
   contrainte: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#1A1209' },
@@ -193,11 +244,14 @@ const styles = {
   totaux: { background: 'white', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' },
   totalLigne: { display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', padding: '0.3rem 0', color: '#1A1209' },
   totalTTC: { fontWeight: '700', fontSize: '1rem', borderTop: '1px solid #E8DDD0', marginTop: '0.5rem', paddingTop: '0.75rem' },
-  btn: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%' },
-  succes: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 1.5rem', gap: '1rem', minHeight: '100vh' },
-  succesEmoji: { fontSize: '4rem' },
-  succesTitre: { fontFamily: 'Georgia, serif', fontSize: '1.5rem', color: '#1A1209' },
-  succesMsg: { fontSize: '0.95rem', color: '#9B8B7A', textAlign: 'center', lineHeight: 1.6 },
+  btn: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%', marginBottom: '0.5rem' },
+  btnSecondaire: { background: 'white', color: '#1A1209', border: '1px solid #E8DDD0', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', cursor: 'pointer', width: '100%' },
+  succes: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', gap: '1rem', minHeight: '100vh', background: '#2C1A0E' },
+  succesCircle: { width: '80px', height: '80px', borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'white', marginBottom: '0.5rem' },
+  succesTitre: { fontFamily: 'Georgia, serif', fontSize: '1.8rem', color: 'white', textAlign: 'center' },
+  succesMsg: { fontSize: '0.95rem', color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 1.7, maxWidth: '320px' },
+  succesInfo: { background: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1rem', width: '100%', maxWidth: '320px', marginBottom: '0.5rem' },
+  succesInfoLigne: { display: 'flex', justifyContent: 'space-between', color: 'white', fontSize: '0.9rem', padding: '0.3rem 0' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' },
   modal: { background: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', width: '100%' },
   modalTitre: { fontFamily: 'Georgia, serif', fontSize: '1.2rem', color: '#1A1209', marginBottom: '1rem' },
