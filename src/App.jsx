@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 import Login from './pages/Login'
 import Inscription from './pages/Inscription'
 import Catalogue from './pages/Catalogue'
-import Scanner from './pages/Scanner'
+import Recherche from './pages/Scanner'
 import Panier from './pages/Panier'
 import Historique from './pages/Historique'
 import Admin from './pages/Admin'
@@ -31,7 +31,7 @@ function App() {
         <Route path="/login" element={!session ? <Login /> : <Navigate to="/catalogue" />} />
         <Route path="/inscription" element={!session ? <Inscription /> : <Navigate to="/catalogue" />} />
         <Route path="/catalogue" element={session ? <Catalogue /> : <Navigate to="/login" />} />
-        <Route path="/scanner" element={session ? <Scanner /> : <Navigate to="/login" />} />
+        <Route path="/recherche" element={session ? <Recherche /> : <Navigate to="/login" />} />
         <Route path="/panier" element={session ? <Panier /> : <Navigate to="/login" />} />
         <Route path="/historique" element={session ? <Historique /> : <Navigate to="/login" />} />
         <Route path="/admin" element={<Admin />} />

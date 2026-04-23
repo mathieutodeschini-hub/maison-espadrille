@@ -80,7 +80,6 @@ export default function Catalogue() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerTop}>
           <h1 style={styles.logo}>LME</h1>
@@ -88,21 +87,14 @@ export default function Catalogue() {
             <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
               🛒 {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
             </button>
-            <button style={styles.btnScanner} onClick={() => navigate('/scanner')}>
-              📷
-            </button>
           </div>
         </div>
-
-        {/* Recherche */}
         <input
           style={styles.search}
           placeholder="Rechercher un produit..."
           value={recherche}
           onChange={e => setRecherche(e.target.value)}
         />
-
-        {/* Filtres saisons */}
         <div style={styles.saisons}>
           <button
             style={{ ...styles.saisonBtn, ...(saisonActive === 'toutes' ? styles.saisonActive : {}) }}
@@ -122,7 +114,6 @@ export default function Catalogue() {
         </div>
       </div>
 
-      {/* Catalogue */}
       <div style={styles.grid}>
         {produitsFiltres.length === 0 && (
           <div style={styles.vide}>Aucun produit trouvé</div>
@@ -146,10 +137,9 @@ export default function Catalogue() {
         })}
       </div>
 
-      {/* Barre de navigation */}
       <div style={styles.navbar}>
-        <button style={styles.navBtn} onClick={() => navigate('/catalogue')}>📦 Catalogue</button>
-        <button style={styles.navBtn} onClick={() => navigate('/scanner')}>📷 Scanner</button>
+        <button style={{ ...styles.navBtn, ...styles.navActif }} onClick={() => navigate('/catalogue')}>📦 Catalogue</button>
+        <button style={styles.navBtn} onClick={() => navigate('/recherche')}>🔍 Recherche</button>
         <button style={styles.navBtn} onClick={() => navigate('/panier')}>
           🛒 Panier {totalPanier > 0 ? `(${totalPanier})` : ''}
         </button>
@@ -157,7 +147,6 @@ export default function Catalogue() {
         <button style={styles.navBtn} onClick={deconnexion}>🚪</button>
       </div>
 
-      {/* Modal produit */}
       {produitOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setProduitOuvert(null)}>
           <div style={styles.modal}>
@@ -168,7 +157,6 @@ export default function Catalogue() {
             <div style={styles.modalRef}>{produitOuvert.reference}</div>
             <div style={styles.modalNom}>{produitOuvert.nom} — {produitOuvert.coloris}</div>
             <div style={styles.modalPrix}>{Number(produitOuvert.prix).toFixed(2)} € / paire</div>
-
             <div style={styles.sizesGrid}>
               {produitOuvert.tailles?.map(t => (
                 <div key={t} style={styles.sizeItem}>
@@ -184,7 +172,6 @@ export default function Catalogue() {
                 </div>
               ))}
             </div>
-
             <div style={styles.modalFooter}>
               <div style={styles.modalTotal}>
                 {Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)} paires —{' '}
@@ -207,7 +194,6 @@ const styles = {
   logo: { fontFamily: 'Georgia, serif', fontSize: '1.4rem', color: '#1A1209' },
   headerActions: { display: 'flex', gap: '0.5rem' },
   btnPanier: { background: '#F5EFE6', border: 'none', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '1.2rem', cursor: 'pointer', position: 'relative' },
-  btnScanner: { background: '#1A1209', border: 'none', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '1.2rem', cursor: 'pointer' },
   badge: { position: 'absolute', top: '-4px', right: '-4px', background: '#C0392B', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   search: { width: '100%', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.65rem 1rem', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '0.75rem' },
   saisons: { display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.25rem' },
@@ -225,7 +211,8 @@ const styles = {
   cardColoris: { fontSize: '0.8rem', color: '#9B8B7A', padding: '0.1rem 0.75rem' },
   cardPrix: { fontSize: '0.85rem', fontWeight: '700', color: '#8B6F47', padding: '0.25rem 0.75rem 0.75rem' },
   navbar: { position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', display: 'flex', borderTop: '1px solid #E8DDD0', zIndex: 10 },
-  navBtn: { flex: 1, background: 'none', border: 'none', padding: '0.75rem 0.25rem', fontSize: '0.65rem', cursor: 'pointer', color: '#1A1209', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem' },
+  navBtn: { flex: 1, background: 'none', border: 'none', padding: '0.75rem 0.25rem', fontSize: '0.65rem', cursor: 'pointer', color: '#9B8B7A', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem' },
+  navActif: { color: '#1A1209', fontWeight: '700' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' },
   modal: { background: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', width: '100%', maxHeight: '85vh', overflowY: 'auto' },
   modalPhoto: { width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '12px', marginBottom: '1rem' },
