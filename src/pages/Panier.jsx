@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import Navbar from '../components/Navbar'
 
 const FRANCO = 1500
 const MIN_PAIRES = 10
@@ -155,14 +156,7 @@ export default function Panier() {
         </>
       )}
 
-      {/* Navbar */}
-      <div style={styles.navbar}>
-        <button style={styles.navBtn} onClick={() => navigate('/accueil')}>🏠<br/>Accueil</button>
-        <button style={styles.navBtn} onClick={() => navigate('/catalogue')}>📦<br/>Catalogue</button>
-        <button style={styles.navBtn} onClick={() => navigate('/recherche')}>🔍<br/>Recherche</button>
-        <button style={{ ...styles.navBtn, ...styles.navActif }}>🛒<br/>Panier</button>
-        <button style={styles.navBtn} onClick={() => navigate('/historique')}>📋<br/>Historique</button>
-      </div>
+      <Navbar panierCount={totalPanier} />
 
       {confirmation && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setConfirmation(false)}>
@@ -223,9 +217,6 @@ const styles = {
   succesInfoTotal: { color: 'white', fontWeight: '700', fontSize: '1rem', borderTop: '1px solid rgba(255,255,255,0.15)', marginTop: '0.3rem', paddingTop: '0.5rem' },
   btnBlanc: { background: 'white', color: '#1A1209', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%', maxWidth: '320px' },
   btnTransparent: { background: 'none', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', cursor: 'pointer', width: '100%', maxWidth: '320px' },
-  navbar: { position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', display: 'flex', borderTop: '1px solid #E8DDD0', zIndex: 10 },
-  navBtn: { flex: 1, background: 'none', border: 'none', padding: '0.6rem 0.1rem', fontSize: '0.58rem', cursor: 'pointer', color: '#9B8B7A', lineHeight: 1.4 },
-  navActif: { color: '#1A1209', fontWeight: '700' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' },
   modal: { background: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', width: '100%' },
   modalTitre: { fontFamily: 'Georgia, serif', fontSize: '1.2rem', color: '#1A1209', marginBottom: '1rem' },

@@ -1,36 +1,37 @@
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 
 export default function Navbar({ panierCount = 0 }) {
   const navigate = useNavigate()
-  const { pathname } = useLocation()
 
   const deconnexion = async () => {
     await supabase.auth.signOut()
   }
 
-  const items = [
-    { path: '/accueil', icon: '🏠', label: 'Accueil' },
-    { path: '/catalogue', icon: '📦', label: 'Catalogue' },
-    { path: '/recherche', icon: '🔍', label: 'Recherche' },
-    { path: '/panier', icon: '🛒', label: panierCount > 0 ? `Panier (${panierCount})` : 'Panier' },
-    { path: '/historique', icon: '📋', label: 'Historique' },
-  ]
-
   return (
     <div style={styles.navbar}>
-      {items.map(item => (
-        <button
-          key={item.path}
-          style={{ ...styles.navBtn, ...(pathname === item.path ? styles.navActif : {}) }}
-          onClick={() => navigate(item.path)}
-        >
-          <span style={styles.navIcon}>{item.icon}</span>
-          <span>{item.label}</span>
-        </button>
-      ))}
+      <button style={styles.navBtn} onClick={() => navigate('/accueil')}>
+        <span style={styles.icon}>🏠</span>
+        <span>Accueil</span>
+      </button>
+      <button style={styles.navBtn} onClick={() => navigate('/catalogue')}>
+        <span style={styles.icon}>📦</span>
+        <span>Catalogue</span>
+      </button>
+      <button style={styles.navBtn} onClick={() => navigate('/recherche')}>
+        <span style={styles.icon}>🔍</span>
+        <span>Recherche</span>
+      </button>
+      <button style={styles.navBtn} onClick={() => navigate('/panier')}>
+        <span style={styles.icon}>🛒</span>
+        <span>{panierCount > 0 ? `Panier (${panierCount})` : 'Panier'}</span>
+      </button>
+      <button style={styles.navBtn} onClick={() => navigate('/historique')}>
+        <span style={styles.icon}>📋</span>
+        <span>Historique</span>
+      </button>
       <button style={styles.navBtn} onClick={deconnexion}>
-        <span style={styles.navIcon}>🚪</span>
+        <span style={styles.icon}>🚪</span>
         <span>Quitter</span>
       </button>
     </div>
@@ -46,11 +47,11 @@ const styles = {
   },
   navBtn: {
     flex: 1, background: 'none', border: 'none',
-    padding: '0.65rem 0.1rem', fontSize: '0.58rem',
+    padding: '0.6rem 0.1rem', fontSize: '0.58rem',
     cursor: 'pointer', color: '#9B8B7A',
     display: 'flex', flexDirection: 'column',
     alignItems: 'center', gap: '0.2rem',
+    lineHeight: 1.4,
   },
-  navActif: { color: '#1A1209', fontWeight: '700' },
-  navIcon: { fontSize: '1.1rem' },
+  icon: { fontSize: '1.1rem' },
 }
