@@ -156,7 +156,7 @@ export default function Panier() {
         </>
       )}
 
-      <Navbar panierCount={totalPanier} />
+      <Navbar panierCount={totalPanier} active="/panier" />
 
       {confirmation && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setConfirmation(false)}>
