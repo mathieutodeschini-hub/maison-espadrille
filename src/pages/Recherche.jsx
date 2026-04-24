@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import Navbar from '../components/Navbar'
+import NavbarUI from '../components/NavbarUI'
 
 export default function Recherche() {
   const [query, setQuery] = useState('')
@@ -66,7 +66,7 @@ export default function Recherche() {
   }
 
   const totalPanier = panier.reduce((sum, l) =>
-    sum + Object.values(l.qtys).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
+    sum + Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
 
   return (
     <div style={styles.container}>
@@ -112,7 +112,7 @@ export default function Recherche() {
           <p style={styles.nbResultats}>{resultats.length} produit{resultats.length > 1 ? 's' : ''} trouvé{resultats.length > 1 ? 's' : ''}</p>
           {resultats.map(p => {
             const ligne = panier.find(l => l.id === p.id)
-            const qty = ligne ? Object.values(ligne.qtys).reduce((a, b) => a + (parseInt(b) || 0), 0) : 0
+            const qty = ligne ? Object.values(ligne.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) : 0
             return (
               <div key={p.id} style={{ ...styles.card, ...(qty > 0 ? styles.cardActive : {}) }} onClick={() => ouvrirProduit(p)}>
                 {p.photo_url
@@ -131,7 +131,7 @@ export default function Recherche() {
         </div>
       )}
 
-      <Navbar panierCount={totalPanier} />
+      <NavbarUI navigate={navigate} active="/recherche" panierCount={totalPanier} />
 
       {produitOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setProduitOuvert(null)}>

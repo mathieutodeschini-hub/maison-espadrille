@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
-import Navbar from '../components/Navbar'
+import NavbarUI from '../components/NavbarUI'
 
 export default function Catalogue() {
   const [produits, setProduits] = useState([])
@@ -68,7 +68,7 @@ export default function Catalogue() {
   }
 
   const totalPanier = panier.reduce((sum, l) =>
-    sum + Object.values(l.qtys).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
+    sum + Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
 
   const produitsFiltres = produits.filter(p => {
     const matchSaison = saisonActive === 'toutes' || p.saison === saisonActive
@@ -110,7 +110,7 @@ export default function Catalogue() {
         {produitsFiltres.length === 0 && <div style={styles.vide}>Aucun produit trouvé</div>}
         {produitsFiltres.map(p => {
           const ligne = panier.find(l => l.id === p.id)
-          const qty = ligne ? Object.values(ligne.qtys).reduce((a, b) => a + (parseInt(b) || 0), 0) : 0
+          const qty = ligne ? Object.values(ligne.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) : 0
           return (
             <div key={p.id} style={{ ...styles.card, ...(qty > 0 ? styles.cardActive : {}) }} onClick={() => ouvrirProduit(p)}>
               {p.photo_url ? <img src={p.photo_url} alt={p.nom} style={styles.photo} /> : <div style={styles.photoPlaceholder}>👟</div>}
@@ -124,7 +124,7 @@ export default function Catalogue() {
         })}
       </div>
 
-      <Navbar panierCount={totalPanier} />
+      <NavbarUI navigate={navigate} active="/catalogue" panierCount={totalPanier} />
 
       {produitOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setProduitOuvert(null)}>

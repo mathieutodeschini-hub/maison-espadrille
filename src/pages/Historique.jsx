@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import Navbar from '../components/Navbar'
+import NavbarUI from '../components/NavbarUI'
 
 export default function Historique() {
   const [commandes, setCommandes] = useState([])
@@ -47,7 +47,9 @@ export default function Historique() {
             <div key={c.id} style={styles.card} onClick={() => setCommandeOuverte(commandeOuverte?.id === c.id ? null : c)}>
               <div style={styles.cardHeader}>
                 <div style={styles.cardInfo}>
-                  <div style={styles.cardDate}>{new Date(c.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                  <div style={styles.cardDate}>
+                    {new Date(c.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </div>
                   <div style={styles.cardDetail}>{c.total_paires} paires · {Number(c.total_ht).toFixed(2)} € HT</div>
                 </div>
                 <div style={styles.cardStatut}>Validée ✓</div>
@@ -72,7 +74,9 @@ export default function Historique() {
                   <div style={styles.detailTotaux}>
                     <div style={styles.detailTotal}><span>Total HT</span><span>{Number(c.total_ht).toFixed(2)} €</span></div>
                     <div style={styles.detailTotal}><span>TVA 20%</span><span>{(Number(c.total_ht) * 0.2).toFixed(2)} €</span></div>
-                    <div style={{ ...styles.detailTotal, ...styles.detailTotalTTC }}><span>Total TTC</span><span>{(Number(c.total_ht) * 1.2).toFixed(2)} €</span></div>
+                    <div style={{ ...styles.detailTotal, ...styles.detailTotalTTC }}>
+                      <span>Total TTC</span><span>{(Number(c.total_ht) * 1.2).toFixed(2)} €</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -81,7 +85,7 @@ export default function Historique() {
         </div>
       )}
 
-      <Navbar active="/historique" />
+      <NavbarUI navigate={navigate} active="/historique" />
     </div>
   )
 }
@@ -109,7 +113,7 @@ const styles = {
   detailRef: { fontSize: '0.7rem', color: '#9B8B7A', marginTop: '0.1rem' },
   detailTailles: { fontSize: '0.75rem', color: '#8B6F47', marginTop: '0.25rem' },
   detailPrix: { fontSize: '0.8rem', color: '#1A1209', fontWeight: '600', marginTop: '0.25rem' },
-  detailTotaux: { background: '#F5EFE6', borderRadius: '8px', padding: '0.75rem', marginTop: '0.5rem' },
+  detailTotaux: { background: 'white', borderRadius: '8px', padding: '0.75rem', marginTop: '0.5rem' },
   detailTotal: { display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#1A1209', padding: '0.2rem 0' },
   detailTotalTTC: { fontWeight: '700', borderTop: '1px solid #E8DDD0', marginTop: '0.3rem', paddingTop: '0.5rem' },
   btn: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '10px', padding: '0.95rem 1.5rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },

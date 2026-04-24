@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import Navbar from '../components/Navbar'
+import NavbarUI from '../components/NavbarUI'
 
 const FRANCO = 1500
 const MIN_PAIRES = 10
@@ -156,7 +156,7 @@ export default function Panier() {
         </>
       )}
 
-      <Navbar panierCount={totalPanier} active="/panier" />
+      <NavbarUI navigate={navigate} active="/panier" panierCount={totalPanier} />
 
       {confirmation && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setConfirmation(false)}>
