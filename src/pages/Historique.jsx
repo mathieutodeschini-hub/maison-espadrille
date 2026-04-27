@@ -47,11 +47,17 @@ export default function Historique() {
   }
 
   const reprendreBrouillon = async (brouillon) => {
-    const { data: produits } = await supabase.from('produits').select('id, actif').in('id', brouillon.lignes.map(l => l.id))
+    const ids = (brouillon.lignes || []).map(l => l.id).filter(Boolean)
+    if (ids.length === 0) {
+      localStorage.setItem('panier', JSON.stringify(brouillon.lignes || []))
+      await supabase.from('commandes').delete().eq('id', brouillon.id)
+      navigate('/panier')
+      return
+    }
+    const { data: produits } = await supabase.from('produits').select('id, actif').in('id', ids)
     const produitsActifs = new Set((produits || []).filter(p => p.actif).map(p => p.id))
-    const lignesValides = brouillon.lignes.filter(l => produitsActifs.has(l.id))
-    const lignesManquantes = brouillon.lignes.filter(l => !produitsActifs.has(l.id))
-
+    const lignesValides = (brouillon.lignes || []).filter(l => produitsActifs.has(l.id))
+    const lignesManquantes = (brouillon.lignes || []).filter(l => !produitsActifs.has(l.id))
     if (lignesManquantes.length > 0) {
       setAlerteBrouillon({ brouillon, lignesValides, lignesManquantes })
     } else {
@@ -93,7 +99,6 @@ export default function Historique() {
         <div style={{ width: 40 }} />
       </div>
 
-      {/* Onglets */}
       <div style={styles.onglets}>
         {[
           { key: 'commandes', label: `Commandes (${commandes.length})` },
@@ -112,7 +117,9 @@ export default function Historique() {
 
       {listeActive.length === 0 ? (
         <div style={styles.vide}>
-          <div style={styles.videEmoji}>{onglet === 'brouillons' ? '💾' : onglet === 'archives' ? '📁' : '📋'}</div>
+          <div style={styles.videEmoji}>
+            {onglet === 'brouillons' ? '💾' : onglet === 'archives' ? '📁' : '📋'}
+          </div>
           <p style={styles.videMsg}>
             {onglet === 'brouillons' ? 'Aucun brouillon sauvegardé' : onglet === 'archives' ? 'Aucune commande archivée' : 'Aucune commande passée'}
           </p>
@@ -124,24 +131,25 @@ export default function Historique() {
         <div style={styles.liste}>
           {listeActive.map(c => (
             <div key={c.id} style={styles.swipeWrapper}>
-              {/* Actions swipe */}
               <div style={styles.swipeActions}>
                 {onglet === 'commandes' && (
                   <button style={styles.btnArchiver} onClick={() => archiver(c.id)}>📁 Archiver</button>
                 )}
-                <button style={styles.btnSupprimerSwipe} onClick={() => supprimer(c.id)}>🗑️ Supprimer</button>
+                <button style={styles.btnSupprimerSwipe} onClick={() => supprimer(c.id)}>🗑️ Suppr.</button>
               </div>
 
-              {/* Carte */}
               <div
                 style={{
                   ...styles.card,
-                  transform: swipeId === c.id ? 'translateX(-140px)' : 'translateX(0)',
+                  transform: swipeId === c.id ? 'translateX(-120px)' : 'translateX(0)',
                   transition: 'transform 0.2s ease',
                 }}
                 onTouchStart={e => handleTouchStart(e, c.id)}
                 onTouchEnd={e => handleTouchEnd(e, c.id)}
-                onClick={() => swipeId === c.id ? setSwipeId(null) : setCommandeOuverte(commandeOuverte?.id === c.id ? null : c)}
+                onClick={() => swipeId === c.id
+                  ? setSwipeId(null)
+                  : setCommandeOuverte(commandeOuverte?.id === c.id ? null : c)
+                }
               >
                 <div style={styles.cardHeader}>
                   <div style={styles.cardInfo}>
@@ -192,19 +200,16 @@ export default function Historique() {
         </div>
       )}
 
-      {/* Alerte brouillon */}
       {alerteBrouillon && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setAlerteBrouillon(null)}>
           <div style={styles.modal}>
             <h2 style={styles.modalTitre}>⚠️ Produits indisponibles</h2>
-            <p style={styles.modalMsg}>
-              Certains produits de ce brouillon ne sont plus disponibles à la commande :
-            </p>
+            <p style={styles.modalMsg}>Certains produits de ce brouillon ne sont plus disponibles :</p>
             {alerteBrouillon.lignesManquantes.map((l, i) => (
               <div key={i} style={styles.ligneManquante}>{l.nom} — {l.coloris}</div>
             ))}
             <p style={styles.modalMsg}>
-              Les autres produits ({alerteBrouillon.lignesValides.length} article(s)) seront chargés dans votre panier.
+              Les {alerteBrouillon.lignesValides.length} autre(s) article(s) seront chargés dans votre panier.
             </p>
             <div style={styles.modalBtns}>
               <button style={styles.btnAnnuler} onClick={() => setAlerteBrouillon(null)}>Annuler</button>
@@ -222,8 +227,8 @@ const styles = {
   loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#9B8B7A' },
   header: { background: 'white', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
   titre: { fontFamily: 'Georgia, serif', fontSize: '1.1rem', color: '#1A1209' },
-  onglets: { display: 'flex', background: 'white', borderBottom: '1px solid #E8DDD0', overflowX: 'auto' },
-  ongletBtn: { flex: 1, padding: '0.85rem 0.5rem', border: 'none', background: 'none', fontSize: '0.8rem', cursor: 'pointer', color: '#9B8B7A', whiteSpace: 'nowrap' },
+  onglets: { display: 'flex', background: 'white', borderBottom: '1px solid #E8DDD0' },
+  ongletBtn: { flex: 1, padding: '0.75rem 0.25rem', border: 'none', background: 'none', fontSize: '0.75rem', cursor: 'pointer', color: '#9B8B7A', whiteSpace: 'nowrap' },
   ongletActif: { color: '#1A1209', fontWeight: '700', borderBottom: '2px solid #1A1209' },
   vide: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 1.5rem', gap: '1rem' },
   videEmoji: { fontSize: '3rem' },
@@ -231,8 +236,8 @@ const styles = {
   liste: { padding: '1rem', overflow: 'hidden' },
   swipeWrapper: { position: 'relative', marginBottom: '0.75rem', borderRadius: '12px', overflow: 'hidden' },
   swipeActions: { position: 'absolute', right: 0, top: 0, bottom: 0, display: 'flex', alignItems: 'stretch' },
-  btnArchiver: { background: '#8B6F47', color: 'white', border: 'none', padding: '0 1rem', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' },
-  btnSupprimerSwipe: { background: '#C0392B', color: 'white', border: 'none', padding: '0 1rem', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' },
+  btnArchiver: { background: '#8B6F47', color: 'white', border: 'none', padding: '0 0.6rem', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', whiteSpace: 'nowrap' },
+  btnSupprimerSwipe: { background: '#C0392B', color: 'white', border: 'none', padding: '0 0.6rem', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', whiteSpace: 'nowrap' },
   card: { background: 'white', borderRadius: '12px', padding: '1rem', cursor: 'pointer', position: 'relative', zIndex: 1 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   cardInfo: { flex: 1 },
