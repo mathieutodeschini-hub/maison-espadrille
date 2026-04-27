@@ -82,7 +82,7 @@ export default function Historique() {
   const handleTouchEnd = (e, id) => {
     if (touchStartX.current === null) return
     const diff = touchStartX.current - e.changedTouches[0].clientX
-    if (diff > 60) setSwipeId(id)
+    if (diff > 50) setSwipeId(id)
     else if (diff < -20) setSwipeId(null)
     touchStartX.current = null
   }
@@ -133,16 +133,22 @@ export default function Historique() {
             <div key={c.id} style={styles.swipeWrapper}>
               <div style={styles.swipeActions}>
                 {onglet === 'commandes' && (
-                  <button style={styles.btnArchiver} onClick={() => archiver(c.id)}>📁 Archiver</button>
+                  <button style={styles.btnArchiver} onClick={() => archiver(c.id)}>
+                    <span style={{ fontSize: '1.3rem' }}>📁</span>
+                    <span>Archiver</span>
+                  </button>
                 )}
-                <button style={styles.btnSupprimerSwipe} onClick={() => supprimer(c.id)}>🗑️ Suppr.</button>
+                <button style={styles.btnSupprimerSwipe} onClick={() => supprimer(c.id)}>
+                  <span style={{ fontSize: '1.3rem' }}>🗑️</span>
+                  <span>Supprimer</span>
+                </button>
               </div>
 
               <div
                 style={{
                   ...styles.card,
-                  transform: swipeId === c.id ? 'translateX(-120px)' : 'translateX(0)',
-                  transition: 'transform 0.2s ease',
+                  transform: swipeId === c.id ? 'translateX(-160px)' : 'translateX(0)',
+                  transition: 'transform 0.25s ease',
                 }}
                 onTouchStart={e => handleTouchStart(e, c.id)}
                 onTouchEnd={e => handleTouchEnd(e, c.id)}
@@ -235,9 +241,26 @@ const styles = {
   videMsg: { fontSize: '1.1rem', color: '#9B8B7A' },
   liste: { padding: '1rem', overflow: 'hidden' },
   swipeWrapper: { position: 'relative', marginBottom: '0.75rem', borderRadius: '12px', overflow: 'hidden' },
-  swipeActions: { position: 'absolute', right: 0, top: 0, bottom: 0, display: 'flex', alignItems: 'stretch' },
-  btnArchiver: { background: '#8B6F47', color: 'white', border: 'none', padding: '0 0.6rem', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', whiteSpace: 'nowrap' },
-  btnSupprimerSwipe: { background: '#C0392B', color: 'white', border: 'none', padding: '0 0.6rem', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', whiteSpace: 'nowrap' },
+  swipeActions: {
+    position: 'absolute', right: 0, top: 0, bottom: 0,
+    display: 'flex', alignItems: 'center',
+    gap: '0.5rem', paddingRight: '0.75rem',
+    background: '#F5EFE6',
+  },
+  btnArchiver: {
+    background: '#8B6F47', color: 'white', border: 'none',
+    width: '68px', height: '68px', borderRadius: '50%',
+    fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', gap: '0.2rem',
+  },
+  btnSupprimerSwipe: {
+    background: '#C0392B', color: 'white', border: 'none',
+    width: '68px', height: '68px', borderRadius: '50%',
+    fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', gap: '0.2rem',
+  },
   card: { background: 'white', borderRadius: '12px', padding: '1rem', cursor: 'pointer', position: 'relative', zIndex: 1 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   cardInfo: { flex: 1 },
