@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import NavbarUI from '../components/NavbarUI'
+import Menu from '../components/Menu'
 
 export default function Recherche() {
   const [query, setQuery] = useState('')
@@ -71,7 +71,11 @@ export default function Recherche() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.logo}>LME</h1>
+        <Menu panierCount={totalPanier} />
+        <h1 style={styles.logo}>Recherche</h1>
+        <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
+          🛒 {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
+        </button>
       </div>
 
       <div style={styles.searchSection}>
@@ -131,8 +135,6 @@ export default function Recherche() {
         </div>
       )}
 
-      <NavbarUI navigate={navigate} active="/recherche" panierCount={totalPanier} />
-
       {produitOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setProduitOuvert(null)}>
           <div style={styles.modal}>
@@ -170,9 +172,11 @@ export default function Recherche() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '80px' },
-  header: { background: 'white', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
-  logo: { fontFamily: 'Georgia, serif', fontSize: '1.4rem', color: '#1A1209' },
+  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '1rem' },
+  header: { background: 'white', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
+  logo: { fontFamily: 'Georgia, serif', fontSize: '1.1rem', color: '#1A1209' },
+  btnPanier: { background: '#F5EFE6', border: 'none', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '1.2rem', cursor: 'pointer', position: 'relative' },
+  badge: { position: 'absolute', top: '-4px', right: '-4px', background: '#C0392B', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   searchSection: { padding: '1.5rem 1rem 1rem' },
   form: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
   input: { border: '1px solid #E8DDD0', borderRadius: '10px', padding: '0.9rem 1rem', fontSize: '1rem', outline: 'none', width: '100%', boxSizing: 'border-box', background: 'white', color: '#1A1209' },

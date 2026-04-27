@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import NavbarUI from '../components/NavbarUI'
+import Menu from '../components/Menu'
 
 const FRANCO = 1500
 const MIN_PAIRES = 10
@@ -47,6 +47,20 @@ export default function Panier() {
     localStorage.setItem('panier', JSON.stringify(nouveau))
   }
 
+  const sauvegarderBrouillon = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('commandes').insert({
+      client_id: user.id,
+      lignes: panier,
+      total_ht: totalHT,
+      total_paires: totalPaires,
+      statut: 'brouillon',
+    })
+    localStorage.removeItem('panier')
+    setPanier([])
+    navigate('/historique')
+  }
+
   const validerCommande = async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -54,7 +68,9 @@ export default function Panier() {
       const qty = Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
       return { reference: l.reference, nom: l.nom, coloris: l.coloris, prix: l.prix, qtys: l.qtys, total_paires: qty, total_ht: qty * l.prix }
     })
-    await supabase.from('commandes').insert({ client_id: user.id, lignes, total_ht: totalHT, total_paires: totalPaires })
+    await supabase.from('commandes').insert({
+      client_id: user.id, lignes, total_ht: totalHT, total_paires: totalPaires, statut: 'validée'
+    })
     setDernierTotal({ paires: totalPaires, ht: totalHT })
     localStorage.removeItem('panier')
     setPanier([])
@@ -84,8 +100,9 @@ export default function Panier() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <button style={styles.btnRetour} onClick={() => navigate('/accueil')}>← Retour</button>
+        <Menu panierCount={totalPanier} />
         <h1 style={styles.titre}>Mon panier</h1>
+        <div style={{ width: 40 }} />
       </div>
 
       {panier.length === 0 ? (
@@ -149,14 +166,15 @@ export default function Panier() {
               <div style={styles.totalLigne}><span>TVA 20%</span><span>{(totalHT * 0.2).toFixed(2)} €</span></div>
               <div style={{ ...styles.totalLigne, ...styles.totalTTC }}><span>Total TTC</span><span>{(totalHT * 1.2).toFixed(2)} €</span></div>
             </div>
-            <button style={{ ...styles.btn, opacity: !minPairesOk ? 0.4 : 1 }} disabled={!minPairesOk} onClick={() => setConfirmation(true)}>
+            <button style={styles.btnSecondaire} onClick={sauvegarderBrouillon}>
+              💾 Sauvegarder en brouillon
+            </button>
+            <button style={{ ...styles.btn, opacity: !minPairesOk ? 0.4 : 1, marginTop: '0.5rem' }} disabled={!minPairesOk} onClick={() => setConfirmation(true)}>
               Valider la commande
             </button>
           </div>
         </>
       )}
-
-      <NavbarUI navigate={navigate} active="/panier" panierCount={totalPanier} />
 
       {confirmation && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setConfirmation(false)}>
@@ -176,10 +194,9 @@ export default function Panier() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '80px' },
+  container: { minHeight: '100vh', background: '#F5EFE6' },
   succesContainer: { minHeight: '100vh', background: '#2C1A0E' },
-  header: { background: 'white', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
-  btnRetour: { background: 'none', border: 'none', fontSize: '1rem', cursor: 'pointer', color: '#8B6F47' },
+  header: { background: 'white', padding: '1rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
   titre: { fontFamily: 'Georgia, serif', fontSize: '1.1rem', color: '#1A1209' },
   vide: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 1.5rem', gap: '1rem' },
   videEmoji: { fontSize: '3rem' },
@@ -207,7 +224,8 @@ const styles = {
   totaux: { background: 'white', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' },
   totalLigne: { display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', padding: '0.3rem 0', color: '#1A1209' },
   totalTTC: { fontWeight: '700', fontSize: '1rem', borderTop: '1px solid #E8DDD0', marginTop: '0.5rem', paddingTop: '0.75rem' },
-  btn: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%', marginBottom: '0.5rem' },
+  btn: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', width: '100%' },
+  btnSecondaire: { background: 'white', color: '#1A1209', border: '1px solid #E8DDD0', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', cursor: 'pointer', width: '100%' },
   succes: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', gap: '1rem' },
   succesCircle: { width: '80px', height: '80px', borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'white', marginBottom: '0.5rem' },
   succesTitre: { fontFamily: 'Georgia, serif', fontSize: '1.8rem', color: 'white', textAlign: 'center' },

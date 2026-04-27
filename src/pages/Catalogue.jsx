@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
-import NavbarUI from '../components/NavbarUI'
+import Menu from '../components/Menu'
 
 export default function Catalogue() {
   const [produits, setProduits] = useState([])
@@ -86,24 +86,27 @@ export default function Catalogue() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.headerTop}>
-          <h1 style={styles.logo}>LME</h1>
-          <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
-            🛒 {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
-          </button>
-        </div>
+        <Menu panierCount={totalPanier} />
+        <h1 style={styles.logo}>Catalogue</h1>
+        <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
+          🛒 {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
+        </button>
+      </div>
+
+      <div style={styles.searchBar}>
         <input
           style={styles.search}
           placeholder="Rechercher un produit..."
           value={recherche}
           onChange={e => setRecherche(e.target.value)}
         />
-        <div style={styles.saisons}>
-          <button style={{ ...styles.saisonBtn, ...(saisonActive === 'toutes' ? styles.saisonActive : {}) }} onClick={() => setSaisonActive('toutes')}>Toutes</button>
-          {saisons.map(s => (
-            <button key={s} style={{ ...styles.saisonBtn, ...(saisonActive === s ? styles.saisonActive : {}) }} onClick={() => setSaisonActive(s)}>{s}</button>
-          ))}
-        </div>
+      </div>
+
+      <div style={styles.saisons}>
+        <button style={{ ...styles.saisonBtn, ...(saisonActive === 'toutes' ? styles.saisonActive : {}) }} onClick={() => setSaisonActive('toutes')}>Toutes</button>
+        {saisons.map(s => (
+          <button key={s} style={{ ...styles.saisonBtn, ...(saisonActive === s ? styles.saisonActive : {}) }} onClick={() => setSaisonActive(s)}>{s}</button>
+        ))}
       </div>
 
       <div style={styles.grid}>
@@ -123,8 +126,6 @@ export default function Catalogue() {
           )
         })}
       </div>
-
-      <NavbarUI navigate={navigate} active="/catalogue" panierCount={totalPanier} />
 
       {produitOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setProduitOuvert(null)}>
@@ -163,18 +164,18 @@ export default function Catalogue() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '80px' },
+  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '1rem' },
   loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#9B8B7A' },
-  header: { background: 'white', padding: '1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
-  headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' },
-  logo: { fontFamily: 'Georgia, serif', fontSize: '1.4rem', color: '#1A1209' },
+  header: { background: 'white', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
+  logo: { fontFamily: 'Georgia, serif', fontSize: '1.1rem', color: '#1A1209' },
   btnPanier: { background: '#F5EFE6', border: 'none', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '1.2rem', cursor: 'pointer', position: 'relative' },
   badge: { position: 'absolute', top: '-4px', right: '-4px', background: '#C0392B', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  search: { width: '100%', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.65rem 1rem', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '0.75rem', color: '#1A1209', background: 'white' },
-  saisons: { display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.25rem' },
+  searchBar: { padding: '0.75rem 1rem 0' },
+  search: { width: '100%', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.65rem 1rem', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', color: '#1A1209', background: 'white' },
+  saisons: { display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.75rem 1rem', paddingBottom: '0.25rem' },
   saisonBtn: { background: '#F5EFE6', border: '1px solid #E8DDD0', borderRadius: '20px', padding: '0.35rem 0.85rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', color: '#1A1209' },
   saisonActive: { background: '#1A1209', color: 'white', border: '1px solid #1A1209' },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '1rem' },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '0.5rem 1rem 1rem' },
   vide: { gridColumn: '1/-1', textAlign: 'center', color: '#9B8B7A', padding: '3rem' },
   card: { background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', cursor: 'pointer', position: 'relative', border: '2px solid transparent' },
   cardActive: { border: '2px solid #8B6F47' },
