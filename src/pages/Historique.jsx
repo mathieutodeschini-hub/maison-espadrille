@@ -88,7 +88,7 @@ export default function Historique() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <Menu />
+        <Menu navigate={navigate} />
         <h1 style={styles.titre}>Historique</h1>
         <div style={{ width: 40 }} />
       </div>

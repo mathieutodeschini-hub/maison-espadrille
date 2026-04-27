@@ -86,7 +86,7 @@ export default function Catalogue() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <Menu panierCount={totalPanier} />
+        <Menu navigate={navigate} panierCount={totalPanier} />
         <h1 style={styles.logo}>Catalogue</h1>
         <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
           🛒 {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
