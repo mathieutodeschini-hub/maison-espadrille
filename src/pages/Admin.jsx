@@ -8,7 +8,7 @@ export default function Admin() {
   const [auth, setAuth] = useState(false)
   const [pwd, setPwd] = useState('')
   const [error, setError] = useState('')
-  const [produits, setProduits] = useState([])
+  const [modeles, setModeles] = useState([])
   const [clients, setClients] = useState([])
   const [commandes, setCommandes] = useState([])
   const [onglet, setOnglet] = useState('produits')
@@ -24,10 +24,10 @@ export default function Admin() {
   }, [auth])
 
   const chargerDonnees = async () => {
-    const { data: p } = await supabase.from('produits').select('*').order('saison')
+    const { data: m } = await supabase.from('modeles').select('*, variantes(*)').order('reference')
     const { data: c } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
     const { data: cmd } = await supabase.from('commandes').select('*').order('created_at', { ascending: false })
-    if (p) setProduits(p)
+    if (m) setModeles(m)
     if (c) setClients(c)
     if (cmd) setCommandes(cmd)
   }
@@ -38,19 +38,19 @@ export default function Admin() {
     else setError('Mot de passe incorrect')
   }
 
-  const toggleActif = async (id, actif) => {
-    await supabase.from('produits').update({ actif: !actif }).eq('id', id)
+  const toggleActifModele = async (id, actif) => {
+    await supabase.from('modeles').update({ actif: !actif }).eq('id', id)
     chargerDonnees()
   }
 
-  const supprimerProduit = async (id) => {
-    await supabase.from('produits').delete().eq('id', id)
+  const supprimerModele = async (id) => {
+    await supabase.from('modeles').delete().eq('id', id)
     setConfirmSuppr(null)
     chargerDonnees()
   }
 
   const supprimerCollection = async (s) => {
-    await supabase.from('produits').delete().eq('saison', s)
+    await supabase.from('modeles').delete().eq('saison', s)
     setConfirmSuppr(null)
     chargerDonnees()
   }
@@ -71,31 +71,73 @@ export default function Admin() {
     }
     setImporting(true)
     setImportMsg('')
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      delimiter: ';',
       complete: async (results) => {
         const lignes = results.data
-        let succes = 0
-        let erreurs = 0
+
+        // Regrouper par référence
+        const modelesMap = {}
         for (const ligne of lignes) {
-          const eans = ligne.EAN ? ligne.EAN.split(',').map(e => e.trim()) : []
-          const tailles = ligne.TAILLES ? ligne.TAILLES.split(',').map(t => t.trim()) : []
-          const { error } = await supabase.from('produits').upsert({
-            reference: ligne.REFERENCE,
-            ean: eans,
-            nom: ligne.NOM,
-            coloris: ligne.COLORIS,
-            prix: parseFloat(ligne.PRIX) || 0,
-            saison: saison,
-            tailles: tailles,
-            photo_url: ligne.PHOTO_URL || null,
-            actif: true,
-          }, { onConflict: 'reference' })
-          if (error) erreurs++
-          else succes++
+          const ref = ligne.REFERENCE?.trim()
+          const coloris = ligne.COLORIS?.trim()
+          const taille = String(ligne.TAILLE?.trim())
+          const ean = ligne.EAN?.trim()
+          const prix = parseFloat(ligne.PRIX) || 0
+
+          if (!ref || !coloris || !taille) continue
+
+          if (!modelesMap[ref]) modelesMap[ref] = {}
+          if (!modelesMap[ref][coloris]) {
+            modelesMap[ref][coloris] = { tailles: [], eans: [], prix }
+          }
+          if (!modelesMap[ref][coloris].tailles.includes(taille)) {
+            modelesMap[ref][coloris].tailles.push(taille)
+          }
+          if (ean && !modelesMap[ref][coloris].eans.includes(ean)) {
+            modelesMap[ref][coloris].eans.push(ean)
+          }
         }
-        setImportMsg(`✅ ${succes} produits importés${erreurs > 0 ? ` — ⚠️ ${erreurs} erreurs` : ''}`)
+
+        let succesModeles = 0
+        let succesVariantes = 0
+        let erreurs = 0
+
+        for (const [reference, colorisMap] of Object.entries(modelesMap)) {
+          // Upsert modèle
+          const { data: modele, error: errModele } = await supabase
+            .from('modeles')
+            .upsert({ reference, nom: reference, saison, actif: true }, { onConflict: 'reference' })
+            .select()
+            .single()
+
+          if (errModele || !modele) { erreurs++; continue }
+          succesModeles++
+
+          // Supprimer les variantes existantes pour cette saison
+          await supabase.from('variantes').delete().eq('modele_id', modele.id)
+
+          // Insérer les nouvelles variantes
+          for (const [coloris, data] of Object.entries(colorisMap)) {
+            const taillesTriees = data.tailles.sort((a, b) => parseFloat(a) - parseFloat(b))
+            const { error: errVariante } = await supabase.from('variantes').insert({
+              modele_id: modele.id,
+              coloris,
+              prix: data.prix,
+              tailles: taillesTriees,
+              eans: data.eans,
+              photo_url: null,
+              actif: true,
+            })
+            if (errVariante) erreurs++
+            else succesVariantes++
+          }
+        }
+
+        setImportMsg(`✅ ${succesModeles} modèles, ${succesVariantes} variantes importés${erreurs > 0 ? ` — ⚠️ ${erreurs} erreurs` : ''}`)
         setImporting(false)
         chargerDonnees()
         e.target.value = ''
@@ -103,7 +145,7 @@ export default function Admin() {
     })
   }
 
-  const saisonsUniques = [...new Set(produits.map(p => p.saison))].filter(Boolean)
+  const saisonsUniques = [...new Set(modeles.map(p => p.saison))].filter(Boolean)
 
   if (!auth) return (
     <div style={styles.container}>
@@ -134,12 +176,11 @@ export default function Admin() {
         ))}
       </div>
 
-      {/* PRODUITS */}
       {onglet === 'produits' && (
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Importer un catalogue</h2>
-          <p style={styles.hint}>Format CSV : REFERENCE, EAN, NOM, COLORIS, PRIX, TAILLES, PHOTO_URL</p>
-          <p style={styles.hint}>EAN et TAILLES multiples séparés par des virgules.</p>
+          <p style={styles.hint}>Format CSV séparé par des points-virgules avec les colonnes : REFERENCE, COLORIS, TAILLE, EAN, PRIX</p>
+          <p style={styles.hint}>Une ligne par taille — l'import regroupe automatiquement par référence et coloris.</p>
 
           <p style={styles.label}>Saison existante</p>
           <select style={styles.input} value={saison} onChange={e => setSaison(e.target.value)}>
@@ -157,18 +198,17 @@ export default function Admin() {
 
           <p style={styles.label}>Fichier CSV</p>
           <input type="file" accept=".csv" style={styles.fileInput} onChange={importerCSV} disabled={importing} />
-          {importing && <p style={styles.hint}>Import en cours...</p>}
+          {importing && <p style={styles.hint}>Import en cours... patience</p>}
           {importMsg && <p style={styles.importMsg}>{importMsg}</p>}
 
-          {/* Suppression par collection */}
           {saisonsUniques.length > 0 && (
             <>
               <h2 style={{ ...styles.sectionTitle, marginTop: '2rem' }}>Supprimer une collection</h2>
               {saisonsUniques.map(s => (
-                <div key={s} style={styles.ligneCollection}>
+                <div key={s} style={styles.ligne}>
                   <div style={styles.ligneInfo}>
                     <div style={styles.ligneNom}>{s}</div>
-                    <div style={styles.ligneDetail}>{produits.filter(p => p.saison === s).length} produits</div>
+                    <div style={styles.ligneDetail}>{modeles.filter(m => m.saison === s).length} modèles</div>
                   </div>
                   <button style={styles.btnSupprimer} onClick={() => setConfirmSuppr({ type: 'collection', saison: s })}>
                     Supprimer
@@ -178,18 +218,20 @@ export default function Admin() {
             </>
           )}
 
-          <h2 style={{ ...styles.sectionTitle, marginTop: '2rem' }}>Produits ({produits.length})</h2>
-          {produits.map(p => (
-            <div key={p.id} style={styles.ligne}>
+          <h2 style={{ ...styles.sectionTitle, marginTop: '2rem' }}>Modèles ({modeles.length})</h2>
+          {modeles.map(m => (
+            <div key={m.id} style={styles.ligne}>
               <div style={styles.ligneInfo}>
-                <div style={styles.ligneNom}>{p.nom} — {p.coloris}</div>
-                <div style={styles.ligneDetail}>{p.reference} · {p.saison} · {p.prix} €</div>
+                <div style={styles.ligneNom}>{m.reference}</div>
+                <div style={styles.ligneDetail}>
+                  {m.saison} · {(m.variantes || []).length} coloris · {(m.variantes || []).map(v => v.coloris).join(', ')}
+                </div>
               </div>
               <div style={styles.ligneBtns}>
-                <button style={{ ...styles.btnToggle, background: p.actif ? '#27AE60' : '#ccc' }} onClick={() => toggleActif(p.id, p.actif)}>
-                  {p.actif ? 'Actif' : 'Inactif'}
+                <button style={{ ...styles.btnToggle, background: m.actif ? '#27AE60' : '#ccc' }} onClick={() => toggleActifModele(m.id, m.actif)}>
+                  {m.actif ? 'Actif' : 'Inactif'}
                 </button>
-                <button style={styles.btnSupprimer} onClick={() => setConfirmSuppr({ type: 'produit', id: p.id, nom: `${p.nom} — ${p.coloris}` })}>
+                <button style={styles.btnSupprimer} onClick={() => setConfirmSuppr({ type: 'modele', id: m.id, nom: m.reference })}>
                   ✕
                 </button>
               </div>
@@ -198,7 +240,6 @@ export default function Admin() {
         </div>
       )}
 
-      {/* CLIENTS */}
       {onglet === 'clients' && (
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Clients ({clients.length})</h2>
@@ -214,14 +255,13 @@ export default function Admin() {
         </div>
       )}
 
-      {/* COMMANDES */}
       {onglet === 'commandes' && (
         <div style={styles.section}>
-          <h2 style={styles.sectionTitle}>Commandes ({commandes.length})</h2>
-          {commandes.map(c => (
+          <h2 style={styles.sectionTitle}>Commandes ({commandes.filter(c => c.statut === 'validée').length})</h2>
+          {commandes.filter(c => c.statut === 'validée').map(c => (
             <div key={c.id} style={styles.ligne}>
               <div style={styles.ligneInfo}>
-                <div style={styles.ligneNom}>Commande du {new Date(c.created_at).toLocaleDateString('fr-FR')}</div>
+                <div style={styles.ligneNom}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</div>
                 <div style={styles.ligneDetail}>{c.total_paires} paires · {Number(c.total_ht).toFixed(2)} € HT</div>
               </div>
             </div>
@@ -229,26 +269,23 @@ export default function Admin() {
         </div>
       )}
 
-      {/* MODAL CONFIRMATION SUPPRESSION */}
       {confirmSuppr && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setConfirmSuppr(null)}>
           <div style={styles.modal}>
             <h2 style={styles.modalTitre}>Confirmer la suppression</h2>
-            {confirmSuppr.type === 'produit' && (
-              <p style={styles.modalMsg}>Supprimer définitivement <strong>{confirmSuppr.nom}</strong> ?</p>
+            {confirmSuppr.type === 'modele' && (
+              <p style={styles.modalMsg}>Supprimer définitivement le modèle <strong>{confirmSuppr.nom}</strong> et toutes ses variantes ?</p>
             )}
             {confirmSuppr.type === 'collection' && (
-              <p style={styles.modalMsg}>Supprimer définitivement toute la collection <strong>{confirmSuppr.saison}</strong> ({produits.filter(p => p.saison === confirmSuppr.saison).length} produits) ?</p>
+              <p style={styles.modalMsg}>Supprimer définitivement toute la collection <strong>{confirmSuppr.saison}</strong> ({modeles.filter(m => m.saison === confirmSuppr.saison).length} modèles) ?</p>
             )}
             <div style={styles.modalBtns}>
               <button style={styles.btnAnnuler} onClick={() => setConfirmSuppr(null)}>Annuler</button>
               <button style={styles.btnConfirmSuppr} onClick={() =>
-                confirmSuppr.type === 'produit'
-                  ? supprimerProduit(confirmSuppr.id)
+                confirmSuppr.type === 'modele'
+                  ? supprimerModele(confirmSuppr.id)
                   : supprimerCollection(confirmSuppr.saison)
-              }>
-                Supprimer
-              </button>
+              }>Supprimer</button>
             </div>
           </div>
         </div>
@@ -282,7 +319,6 @@ const styles = {
   saisonActive: { fontSize: '0.85rem', color: '#27AE60', marginBottom: '0.75rem' },
   fileInput: { width: '100%', marginBottom: '0.75rem', fontSize: '0.9rem' },
   importMsg: { marginTop: '0.5rem', fontSize: '0.9rem', color: '#27AE60', marginBottom: '1rem' },
-  ligneCollection: { background: 'white', borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   ligne: { background: 'white', borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   ligneInfo: { flex: 1 },
   ligneNom: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209' },
