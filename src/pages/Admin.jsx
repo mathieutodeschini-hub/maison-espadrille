@@ -24,10 +24,26 @@ export default function Admin() {
   }, [auth])
 
   const chargerDonnees = async () => {
-    const { data: m } = await supabase.from('modeles').select('*, variantes(*)').order('reference')
+    const { data: m } = await supabase
+      .from('modeles')
+      .select('*')
+      .order('reference')
+
+    if (m) {
+      const modelesAvecVariantes = await Promise.all(
+        m.map(async (modele) => {
+          const { data: variantes } = await supabase
+            .from('variantes')
+            .select('*')
+            .eq('modele_id', modele.id)
+          return { ...modele, variantes: variantes || [] }
+        })
+      )
+      setModeles(modelesAvecVariantes)
+    }
+
     const { data: c } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
     const { data: cmd } = await supabase.from('commandes').select('*').order('created_at', { ascending: false })
-    if (m) setModeles(m)
     if (c) setClients(c)
     if (cmd) setCommandes(cmd)
   }
@@ -78,9 +94,8 @@ export default function Admin() {
       delimiter: ';',
       complete: async (results) => {
         const lignes = results.data
-
-        // Regrouper par référence
         const modelesMap = {}
+
         for (const ligne of lignes) {
           const ref = ligne.REFERENCE?.trim()
           const coloris = ligne.COLORIS?.trim()
@@ -107,7 +122,6 @@ export default function Admin() {
         let erreurs = 0
 
         for (const [reference, colorisMap] of Object.entries(modelesMap)) {
-          // Upsert modèle
           const { data: modele, error: errModele } = await supabase
             .from('modeles')
             .upsert({ reference, nom: reference, saison, actif: true }, { onConflict: 'reference' })
@@ -117,10 +131,8 @@ export default function Admin() {
           if (errModele || !modele) { erreurs++; continue }
           succesModeles++
 
-          // Supprimer les variantes existantes pour cette saison
           await supabase.from('variantes').delete().eq('modele_id', modele.id)
 
-          // Insérer les nouvelles variantes
           for (const [coloris, data] of Object.entries(colorisMap)) {
             const taillesTriees = data.tailles.sort((a, b) => parseFloat(a) - parseFloat(b))
             const { error: errVariante } = await supabase.from('variantes').insert({
@@ -179,8 +191,8 @@ export default function Admin() {
       {onglet === 'produits' && (
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Importer un catalogue</h2>
-          <p style={styles.hint}>Format CSV séparé par des points-virgules avec les colonnes : REFERENCE, COLORIS, TAILLE, EAN, PRIX</p>
-          <p style={styles.hint}>Une ligne par taille — l'import regroupe automatiquement par référence et coloris.</p>
+          <p style={styles.hint}>Format CSV séparé par des points-virgules : REFERENCE, COLORIS, TAILLE, EAN, PRIX</p>
+          <p style={styles.hint}>Une ligne par taille — l'import regroupe automatiquement.</p>
 
           <p style={styles.label}>Saison existante</p>
           <select style={styles.input} value={saison} onChange={e => setSaison(e.target.value)}>
@@ -274,10 +286,10 @@ export default function Admin() {
           <div style={styles.modal}>
             <h2 style={styles.modalTitre}>Confirmer la suppression</h2>
             {confirmSuppr.type === 'modele' && (
-              <p style={styles.modalMsg}>Supprimer définitivement le modèle <strong>{confirmSuppr.nom}</strong> et toutes ses variantes ?</p>
+              <p style={styles.modalMsg}>Supprimer définitivement <strong>{confirmSuppr.nom}</strong> et toutes ses variantes ?</p>
             )}
             {confirmSuppr.type === 'collection' && (
-              <p style={styles.modalMsg}>Supprimer définitivement toute la collection <strong>{confirmSuppr.saison}</strong> ({modeles.filter(m => m.saison === confirmSuppr.saison).length} modèles) ?</p>
+              <p style={styles.modalMsg}>Supprimer toute la collection <strong>{confirmSuppr.saison}</strong> ({modeles.filter(m => m.saison === confirmSuppr.saison).length} modèles) ?</p>
             )}
             <div style={styles.modalBtns}>
               <button style={styles.btnAnnuler} onClick={() => setConfirmSuppr(null)}>Annuler</button>
