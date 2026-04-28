@@ -9,6 +9,7 @@ import Recherche from './pages/Recherche'
 import Panier from './pages/Panier'
 import Historique from './pages/Historique'
 import Admin from './pages/Admin'
+import Profil from './pages/Profil'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -51,6 +52,7 @@ function App() {
         <Route path="/historique" element={session ? <Historique /> : <Navigate to="/login" />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<Navigate to={session ? "/accueil" : "/login"} />} />
+        <Route path="/profil" element={session ? <Profil /> : <Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
   )

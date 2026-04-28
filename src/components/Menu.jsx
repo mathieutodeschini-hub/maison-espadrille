@@ -20,6 +20,7 @@ export default function Menu({ navigate, panierCount = 0 }) {
     { path: '/recherche', icon: '🔍', label: 'Recherche' },
     { path: '/panier', icon: '🛒', label: panierCount > 0 ? `Panier (${panierCount})` : 'Panier' },
     { path: '/historique', icon: '📋', label: 'Historique' },
+    { path: '/profil', icon: '👤', label: 'Mon profil' },
   ]
 
   return (
