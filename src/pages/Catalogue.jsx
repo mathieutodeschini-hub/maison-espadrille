@@ -4,27 +4,43 @@ import { useNavigate } from 'react-router-dom'
 import Menu from '../components/Menu'
 
 export default function Catalogue() {
-  const [produits, setProduits] = useState([])
+  const [modeles, setModeles] = useState([])
   const [saisons, setSaisons] = useState([])
   const [saisonActive, setSaisonActive] = useState('toutes')
   const [recherche, setRecherche] = useState('')
   const [panier, setPanier] = useState([])
-  const [produitOuvert, setProduitOuvert] = useState(null)
+  const [modeleOuvert, setModeleOuvert] = useState(null)
+  const [varianteOuverte, setVarianteOuverte] = useState(null)
   const [qtys, setQtys] = useState({})
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    chargerProduits()
+    chargerModeles()
     const panierSauvegarde = localStorage.getItem('panier')
     if (panierSauvegarde) setPanier(JSON.parse(panierSauvegarde))
   }, [])
 
-  const chargerProduits = async () => {
-    const { data } = await supabase.from('produits').select('*').eq('actif', true).order('saison')
-    if (data) {
-      setProduits(data)
-      const s = [...new Set(data.map(p => p.saison))].filter(Boolean)
+  const chargerModeles = async () => {
+    const { data: m } = await supabase
+      .from('modeles')
+      .select('*')
+      .eq('actif', true)
+      .order('reference')
+
+    if (m) {
+      const modelesAvecVariantes = await Promise.all(
+        m.map(async (modele) => {
+          const { data: variantes } = await supabase
+            .from('variantes')
+            .select('*')
+            .eq('modele_id', modele.id)
+            .eq('actif', true)
+          return { ...modele, variantes: variantes || [] }
+        })
+      )
+      setModeles(modelesAvecVariantes)
+      const s = [...new Set(modelesAvecVariantes.map(m => m.saison))].filter(Boolean)
       setSaisons(s)
     }
     setLoading(false)
@@ -35,9 +51,15 @@ export default function Catalogue() {
     localStorage.setItem('panier', JSON.stringify(nouveauPanier))
   }
 
-  const ouvrirProduit = (p) => {
-    setProduitOuvert(p)
-    const ligne = panier.find(l => l.id === p.id)
+  const ouvrirModele = (m) => {
+    setModeleOuvert(m)
+    setVarianteOuverte(null)
+    setQtys({})
+  }
+
+  const ouvrirVariante = (v) => {
+    setVarianteOuverte(v)
+    const ligne = panier.find(l => l.varianteId === v.id)
     setQtys(ligne ? { ...ligne.qtys } : {})
   }
 
@@ -49,35 +71,62 @@ export default function Catalogue() {
     })
   }
 
-  const validerProduit = () => {
+  const validerVariante = () => {
+    if (!varianteOuverte || !modeleOuvert) return
     const totalQty = Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)
     let nouveauPanier
+    const key = varianteOuverte.id
+
     if (totalQty === 0) {
-      nouveauPanier = panier.filter(l => l.id !== produitOuvert.id)
+      nouveauPanier = panier.filter(l => l.varianteId !== key)
     } else {
-      const existe = panier.find(l => l.id === produitOuvert.id)
+      const existe = panier.find(l => l.varianteId === key)
+      const ligne = {
+        id: key,
+        varianteId: key,
+        modeleId: modeleOuvert.id,
+        reference: modeleOuvert.reference,
+        nom: modeleOuvert.reference,
+        coloris: varianteOuverte.coloris,
+        prix: varianteOuverte.prix,
+        tailles: varianteOuverte.tailles,
+        photo_url: varianteOuverte.photo_url,
+        qtys,
+      }
       if (existe) {
-        nouveauPanier = panier.map(l => l.id === produitOuvert.id ? { ...l, qtys } : l)
+        nouveauPanier = panier.map(l => l.varianteId === key ? ligne : l)
       } else {
-        nouveauPanier = [...panier, { ...produitOuvert, qtys }]
+        nouveauPanier = [...panier, ligne]
       }
     }
     sauvegarderPanier(nouveauPanier)
-    setProduitOuvert(null)
+    setVarianteOuverte(null)
+    setModeleOuvert(null)
     setQtys({})
   }
 
   const totalPanier = panier.reduce((sum, l) =>
     sum + Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
 
-  const produitsFiltres = produits.filter(p => {
-    const matchSaison = saisonActive === 'toutes' || p.saison === saisonActive
+  const modelesFiltres = modeles.filter(m => {
+    const matchSaison = saisonActive === 'toutes' || m.saison === saisonActive
     const matchRecherche = !recherche ||
-      p.nom?.toLowerCase().includes(recherche.toLowerCase()) ||
-      p.reference?.toLowerCase().includes(recherche.toLowerCase()) ||
-      p.coloris?.toLowerCase().includes(recherche.toLowerCase())
-    return matchSaison && matchRecherche
+      m.reference?.toLowerCase().includes(recherche.toLowerCase()) ||
+      m.variantes?.some(v => v.coloris?.toLowerCase().includes(recherche.toLowerCase()))
+    return matchSaison && matchRecherche && m.variantes?.length > 0
   })
+
+  const getPanierQtyForModele = (modele) => {
+    return panier
+      .filter(l => l.modeleId === modele.id)
+      .reduce((sum, l) => sum + Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
+  }
+
+  const getPanierQtyForVariante = (varianteId) => {
+    const ligne = panier.find(l => l.varianteId === varianteId)
+    if (!ligne) return 0
+    return Object.values(ligne.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
+  }
 
   if (loading) return (
     <div style={styles.loading}>Chargement du catalogue...</div>
@@ -96,7 +145,7 @@ export default function Catalogue() {
       <div style={styles.searchBar}>
         <input
           style={styles.search}
-          placeholder="Rechercher un produit..."
+          placeholder="Référence ou coloris..."
           value={recherche}
           onChange={e => setRecherche(e.target.value)}
         />
@@ -110,35 +159,72 @@ export default function Catalogue() {
       </div>
 
       <div style={styles.grid}>
-        {produitsFiltres.length === 0 && <div style={styles.vide}>Aucun produit trouvé</div>}
-        {produitsFiltres.map(p => {
-          const ligne = panier.find(l => l.id === p.id)
-          const qty = ligne ? Object.values(ligne.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) : 0
+        {modelesFiltres.length === 0 && <div style={styles.vide}>Aucun produit trouvé</div>}
+        {modelesFiltres.map(m => {
+          const qty = getPanierQtyForModele(m)
+          const photoUrl = m.variantes?.[0]?.photo_url
           return (
-            <div key={p.id} style={{ ...styles.card, ...(qty > 0 ? styles.cardActive : {}) }} onClick={() => ouvrirProduit(p)}>
-              {p.photo_url ? <img src={p.photo_url} alt={p.nom} style={styles.photo} /> : <div style={styles.photoPlaceholder}>👟</div>}
+            <div key={m.id} style={{ ...styles.card, ...(qty > 0 ? styles.cardActive : {}) }} onClick={() => ouvrirModele(m)}>
+              {photoUrl
+                ? <img src={photoUrl} alt={m.reference} style={styles.photo} />
+                : <div style={styles.photoPlaceholder}>👟</div>
+              }
               {qty > 0 && <div style={styles.cardBadge}>{qty}</div>}
-              <div style={styles.cardRef}>{p.reference}</div>
-              <div style={styles.cardNom}>{p.nom}</div>
-              <div style={styles.cardColoris}>{p.coloris}</div>
-              <div style={styles.cardPrix}>{Number(p.prix).toFixed(2)} €</div>
+              <div style={styles.cardRef}>{m.reference}</div>
+              <div style={styles.cardColoris}>{m.variantes?.length} coloris</div>
+              <div style={styles.cardPrix}>à partir de {Math.min(...m.variantes.map(v => v.prix)).toFixed(2)} €</div>
             </div>
           )
         })}
       </div>
 
-      {produitOuvert && (
-        <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setProduitOuvert(null)}>
+      {/* Modal choix coloris */}
+      {modeleOuvert && !varianteOuverte && (
+        <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setModeleOuvert(null)}>
           <div style={styles.modal}>
-            {produitOuvert.photo_url
-              ? <img src={produitOuvert.photo_url} alt={produitOuvert.nom} style={styles.modalPhoto} />
-              : <div style={styles.modalPhotoPlaceholder}>👟</div>
-            }
-            <div style={styles.modalRef}>{produitOuvert.reference}</div>
-            <div style={styles.modalNom}>{produitOuvert.nom} — {produitOuvert.coloris}</div>
-            <div style={styles.modalPrix}>{Number(produitOuvert.prix).toFixed(2)} € / paire</div>
+            <div style={styles.modalHeader}>
+              <div>
+                <div style={styles.modalRef}>{modeleOuvert.reference}</div>
+                <div style={styles.modalTitre}>Choisir un coloris</div>
+              </div>
+              <button style={styles.btnFermer} onClick={() => setModeleOuvert(null)}>✕</button>
+            </div>
+            <div style={styles.colorisGrid}>
+              {modeleOuvert.variantes?.map(v => {
+                const qty = getPanierQtyForVariante(v.id)
+                return (
+                  <div key={v.id} style={{ ...styles.colorisCard, ...(qty > 0 ? styles.colorisActif : {}) }} onClick={() => ouvrirVariante(v)}>
+                    {v.photo_url
+                      ? <img src={v.photo_url} alt={v.coloris} style={styles.colorisPhoto} />
+                      : <div style={styles.colorisPhotoPlaceholder}>👟</div>
+                    }
+                    {qty > 0 && <div style={styles.colorisBadge}>{qty}</div>}
+                    <div style={styles.colorisNom}>{v.coloris}</div>
+                    <div style={styles.colorisPrix}>{Number(v.prix).toFixed(2)} €</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal sélection tailles */}
+      {varianteOuverte && modeleOuvert && (
+        <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setVarianteOuverte(null)}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <div>
+                <div style={styles.modalRef}>{modeleOuvert.reference} — {varianteOuverte.coloris}</div>
+                <div style={styles.modalPrix}>{Number(varianteOuverte.prix).toFixed(2)} € / paire</div>
+              </div>
+              <button style={styles.btnFermer} onClick={() => { setVarianteOuverte(null) }}>←</button>
+            </div>
+            {varianteOuverte.photo_url && (
+              <img src={varianteOuverte.photo_url} alt={varianteOuverte.coloris} style={styles.modalPhoto} />
+            )}
             <div style={styles.sizesGrid}>
-              {produitOuvert.tailles?.map(t => (
+              {varianteOuverte.tailles?.map(t => (
                 <div key={t} style={styles.sizeItem}>
                   <div style={styles.sizeLabel}>T.{t}</div>
                   <div style={styles.sizeControls}>
@@ -152,9 +238,9 @@ export default function Catalogue() {
             <div style={styles.modalFooter}>
               <div style={styles.modalTotal}>
                 {Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)} paires —{' '}
-                {(Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0) * produitOuvert.prix).toFixed(2)} € HT
+                {(Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0) * varianteOuverte.prix).toFixed(2)} € HT
               </div>
-              <button style={styles.btnValider} onClick={validerProduit}>Ajouter</button>
+              <button style={styles.btnValider} onClick={validerVariante}>Ajouter</button>
             </div>
           </div>
         </div>
@@ -172,27 +258,35 @@ const styles = {
   badge: { position: 'absolute', top: '-4px', right: '-4px', background: '#C0392B', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   searchBar: { padding: '0.75rem 1rem 0' },
   search: { width: '100%', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.65rem 1rem', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', color: '#1A1209', background: 'white' },
-  saisons: { display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.75rem 1rem', paddingBottom: '0.25rem' },
+  saisons: { display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.75rem 1rem 0.25rem' },
   saisonBtn: { background: '#F5EFE6', border: '1px solid #E8DDD0', borderRadius: '20px', padding: '0.35rem 0.85rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', color: '#1A1209' },
   saisonActive: { background: '#1A1209', color: 'white', border: '1px solid #1A1209' },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '0.5rem 1rem 1rem' },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '0.75rem 1rem 1rem' },
   vide: { gridColumn: '1/-1', textAlign: 'center', color: '#9B8B7A', padding: '3rem' },
   card: { background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', cursor: 'pointer', position: 'relative', border: '2px solid transparent' },
   cardActive: { border: '2px solid #8B6F47' },
   photo: { width: '100%', aspectRatio: '1', objectFit: 'cover' },
   photoPlaceholder: { width: '100%', aspectRatio: '1', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' },
   cardBadge: { position: 'absolute', top: '0.5rem', right: '0.5rem', background: '#8B6F47', color: 'white', borderRadius: '20px', padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontWeight: '700' },
-  cardRef: { fontSize: '0.7rem', color: '#9B8B7A', padding: '0.5rem 0.75rem 0', fontWeight: '600' },
-  cardNom: { fontSize: '0.85rem', fontWeight: '600', padding: '0.1rem 0.75rem', color: '#1A1209' },
-  cardColoris: { fontSize: '0.8rem', color: '#9B8B7A', padding: '0.1rem 0.75rem' },
-  cardPrix: { fontSize: '0.85rem', fontWeight: '700', color: '#8B6F47', padding: '0.25rem 0.75rem 0.75rem' },
+  cardRef: { fontSize: '0.85rem', fontWeight: '600', padding: '0.5rem 0.75rem 0.1rem', color: '#1A1209' },
+  cardColoris: { fontSize: '0.75rem', color: '#9B8B7A', padding: '0 0.75rem' },
+  cardPrix: { fontSize: '0.85rem', fontWeight: '700', color: '#8B6F47', padding: '0.1rem 0.75rem 0.75rem' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' },
   modal: { background: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', width: '100%', maxHeight: '85vh', overflowY: 'auto' },
-  modalPhoto: { width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '12px', marginBottom: '1rem' },
-  modalPhotoPlaceholder: { width: '100%', height: '150px', background: '#F5EFE6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4rem', marginBottom: '1rem' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' },
   modalRef: { fontSize: '0.75rem', color: '#9B8B7A', fontWeight: '600' },
-  modalNom: { fontSize: '1.1rem', fontWeight: '700', color: '#1A1209', margin: '0.25rem 0' },
-  modalPrix: { fontSize: '0.95rem', color: '#8B6F47', fontWeight: '600', marginBottom: '1rem' },
+  modalTitre: { fontSize: '1.1rem', fontWeight: '700', color: '#1A1209', marginTop: '0.2rem' },
+  modalPrix: { fontSize: '0.95rem', color: '#8B6F47', fontWeight: '600', marginTop: '0.2rem' },
+  btnFermer: { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#9B8B7A', padding: '0' },
+  colorisGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' },
+  colorisCard: { background: '#F5EFE6', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', border: '2px solid transparent', position: 'relative' },
+  colorisActif: { border: '2px solid #8B6F47' },
+  colorisPhoto: { width: '100%', aspectRatio: '1', objectFit: 'cover' },
+  colorisPhotoPlaceholder: { width: '100%', aspectRatio: '1', background: '#E8DDD0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' },
+  colorisBadge: { position: 'absolute', top: '0.3rem', right: '0.3rem', background: '#8B6F47', color: 'white', borderRadius: '20px', padding: '0.1rem 0.4rem', fontSize: '0.65rem', fontWeight: '700' },
+  colorisNom: { fontSize: '0.75rem', fontWeight: '600', padding: '0.35rem 0.5rem 0.1rem', color: '#1A1209' },
+  colorisPrix: { fontSize: '0.7rem', color: '#8B6F47', fontWeight: '600', padding: '0 0.5rem 0.4rem' },
+  modalPhoto: { width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '10px', marginBottom: '1rem' },
   sizesGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' },
   sizeItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' },
   sizeLabel: { fontSize: '0.75rem', fontWeight: '700', color: '#9B8B7A' },
