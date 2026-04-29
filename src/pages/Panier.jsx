@@ -63,13 +63,36 @@ export default function Panier() {
   const validerCommande = async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+
     const lignes = panier.map(l => {
       const qty = Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
       return { reference: l.reference, nom: l.nom, coloris: l.coloris, prix: l.prix, qtys: l.qtys, total_paires: qty, total_ht: qty * l.prix }
     })
+
     await supabase.from('commandes').insert({
       client_id: user.id, lignes, total_ht: totalHT, total_paires: totalPaires, statut: 'validée'
     })
+
+    try {
+      await supabase.functions.invoke('send-order-email', {
+        body: {
+          client: {
+            nom: profile.nom,
+            email: profile.email,
+            magasin: profile.magasin,
+            adresse_livraison: profile.adresse_livraison,
+            adresse_facturation: profile.adresse_facturation,
+          },
+          lignes,
+          totalHT,
+          totalPaires,
+        }
+      })
+    } catch (err) {
+      console.error('Erreur envoi email:', err)
+    }
+
     setDernierTotal({ paires: totalPaires, ht: totalHT })
     localStorage.removeItem('panier')
     setPanier([])
@@ -83,7 +106,7 @@ export default function Panier() {
       <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'white' }}>✓</div>
       <h2 style={{ fontFamily: 'Georgia, serif', fontSize: '1.8rem', color: 'white', textAlign: 'center' }}>Commande envoyée</h2>
       <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 1.7, maxWidth: '320px' }}>
-        Votre commande a bien été transmise à votre représentant.
+        Votre commande a bien été transmise. Un email de confirmation vous a été envoyé.
       </p>
       <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1rem', width: '100%', maxWidth: '320px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', padding: '0.3rem 0' }}><span>Total paires</span><span>{dernierTotal.paires}</span></div>
@@ -119,8 +142,8 @@ export default function Panier() {
                 <div key={l.id} style={{ background: 'white', borderRadius: '12px', padding: '1rem', marginBottom: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#1A1209' }}>{l.nom} — {l.coloris}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#9B8B7A', marginTop: '0.1rem' }}>{l.reference}</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#1A1209' }}>{l.reference} — {l.coloris}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#9B8B7A', marginTop: '0.1rem' }}>{l.prix} € / paire</div>
                     </div>
                     <button style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: '1rem' }} onClick={() => supprimerLigne(l.id)}>✕</button>
                   </div>
@@ -185,7 +208,7 @@ export default function Panier() {
               En confirmant, vous validez votre commande de <strong>{totalPaires} paires</strong> pour un montant de <strong>{totalHT.toFixed(2)} € HT</strong>.
             </p>
             <p style={{ fontSize: '0.9rem', color: '#1A1209', lineHeight: 1.6, marginBottom: '0.75rem' }}>
-              Elle sera transmise immédiatement à votre représentant.
+              Elle sera transmise immédiatement à votre représentant. Un email de confirmation vous sera envoyé.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
               <button style={{ flex: 1, background: '#F5EFE6', color: '#1A1209', border: 'none', borderRadius: '10px', padding: '0.95rem', fontSize: '1rem', cursor: 'pointer' }} onClick={() => setConfirmation(false)}>Annuler</button>
