@@ -165,14 +165,16 @@ export default function Historique() {
                     {onglet === 'brouillons' ? (
                       <div style={styles.cardDetail}>{(c.lignes || []).length} article(s) — brouillon</div>
                     ) : (
-                      <div style={styles.cardDetail}>
+                      <>
                         {c.saison && (
-                          <span style={{ background: '#1A1209', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.7rem', marginRight: '6px' }}>
-                            {c.saison}
-                          </span>
+                          <div style={styles.cardSaison}>
+                            Saison : <strong>{c.saison}</strong>
+                          </div>
                         )}
-                        {c.total_paires} paires · {Number(c.total_ht).toFixed(2)} € HT
-                      </div>
+                        <div style={styles.cardDetail}>
+                          {c.total_paires} paires · {Number(c.total_ht).toFixed(2)} € HT
+                        </div>
+                      </>
                     )}
                   </div>
                   {onglet === 'brouillons' ? (
@@ -251,10 +253,11 @@ const styles = {
   btnArchiver: { background: '#8B6F47', color: 'white', border: 'none', width: '68px', height: '68px', borderRadius: '50%', fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' },
   btnSupprimerSwipe: { background: '#C0392B', color: 'white', border: 'none', width: '68px', height: '68px', borderRadius: '50%', fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' },
   card: { background: 'white', borderRadius: '12px', padding: '1rem', cursor: 'pointer', position: 'relative', zIndex: 1 },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   cardInfo: { flex: 1 },
-  cardDate: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209' },
-  cardDetail: { fontSize: '0.8rem', color: '#9B8B7A', marginTop: '0.3rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' },
+  cardDate: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209', marginBottom: '0.2rem' },
+  cardSaison: { fontSize: '0.8rem', color: '#8B6F47', marginBottom: '0.15rem' },
+  cardDetail: { fontSize: '0.8rem', color: '#9B8B7A' },
   cardStatut: { fontSize: '0.8rem', color: '#27AE60', fontWeight: '600' },
   btnReprendre: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '8px', padding: '0.4rem 0.75rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' },
   detail: { marginTop: '1rem', borderTop: '1px solid #F5EFE6', paddingTop: '1rem' },
