@@ -91,6 +91,7 @@ export default function Recherche() {
         prix: varianteOuverte.prix,
         tailles: varianteOuverte.tailles,
         photo_url: varianteOuverte.photo_url,
+        saison: modeleOuvert.saison,
         qtys,
       }
       if (existe) {
@@ -186,13 +187,12 @@ export default function Recherche() {
         </div>
       )}
 
-      {/* Modal choix coloris */}
       {modeleOuvert && !varianteOuverte && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setModeleOuvert(null)}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
               <div>
-                <div style={styles.modalRef}>{modeleOuvert.reference}</div>
+                <div style={styles.modalRef}>{modeleOuvert.reference} · {modeleOuvert.saison}</div>
                 <div style={styles.modalTitre}>Choisir un coloris</div>
               </div>
               <button style={styles.btnFermer} onClick={() => setModeleOuvert(null)}>✕</button>
@@ -217,7 +217,6 @@ export default function Recherche() {
         </div>
       )}
 
-      {/* Modal sélection tailles */}
       {varianteOuverte && modeleOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setVarianteOuverte(null)}>
           <div style={styles.modal}>

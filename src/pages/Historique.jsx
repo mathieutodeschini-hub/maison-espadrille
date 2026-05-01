@@ -54,7 +54,7 @@ export default function Historique() {
       navigate('/panier')
       return
     }
-    const { data: produits } = await supabase.from('produits').select('id, actif').in('id', ids)
+    const { data: produits } = await supabase.from('variantes').select('id, actif').in('id', ids)
     const produitsActifs = new Set((produits || []).filter(p => p.actif).map(p => p.id))
     const lignesValides = (brouillon.lignes || []).filter(l => produitsActifs.has(l.id))
     const lignesManquantes = (brouillon.lignes || []).filter(l => !produitsActifs.has(l.id))
@@ -165,7 +165,14 @@ export default function Historique() {
                     {onglet === 'brouillons' ? (
                       <div style={styles.cardDetail}>{(c.lignes || []).length} article(s) — brouillon</div>
                     ) : (
-                      <div style={styles.cardDetail}>{c.total_paires} paires · {Number(c.total_ht).toFixed(2)} € HT</div>
+                      <div style={styles.cardDetail}>
+                        {c.saison && (
+                          <span style={{ background: '#1A1209', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.7rem', marginRight: '6px' }}>
+                            {c.saison}
+                          </span>
+                        )}
+                        {c.total_paires} paires · {Number(c.total_ht).toFixed(2)} € HT
+                      </div>
                     )}
                   </div>
                   {onglet === 'brouillons' ? (
@@ -184,8 +191,7 @@ export default function Historique() {
                       const tailles = Object.entries(l.qtys || {}).filter(([, v]) => parseInt(v) > 0)
                       return (
                         <div key={i} style={styles.detailLigne}>
-                          <div style={styles.detailNom}>{l.nom} — {l.coloris}</div>
-                          <div style={styles.detailRef}>{l.reference}</div>
+                          <div style={styles.detailNom}>{l.reference} — {l.coloris}</div>
                           <div style={styles.detailTailles}>{tailles.map(([t, v]) => `T${t}×${v}`).join('  ')}</div>
                           <div style={styles.detailPrix}>{l.total_paires} paires · {Number(l.total_ht).toFixed(2)} €</div>
                         </div>
@@ -212,7 +218,7 @@ export default function Historique() {
             <h2 style={styles.modalTitre}>⚠️ Produits indisponibles</h2>
             <p style={styles.modalMsg}>Certains produits de ce brouillon ne sont plus disponibles :</p>
             {alerteBrouillon.lignesManquantes.map((l, i) => (
-              <div key={i} style={styles.ligneManquante}>{l.nom} — {l.coloris}</div>
+              <div key={i} style={styles.ligneManquante}>{l.reference} — {l.coloris}</div>
             ))}
             <p style={styles.modalMsg}>
               Les {alerteBrouillon.lignesValides.length} autre(s) article(s) seront chargés dans votre panier.
@@ -241,38 +247,20 @@ const styles = {
   videMsg: { fontSize: '1.1rem', color: '#9B8B7A' },
   liste: { padding: '1rem', overflow: 'hidden' },
   swipeWrapper: { position: 'relative', marginBottom: '0.75rem', borderRadius: '12px', overflow: 'hidden' },
-  swipeActions: {
-    position: 'absolute', right: 0, top: 0, bottom: 0,
-    display: 'flex', alignItems: 'center',
-    gap: '0.5rem', paddingRight: '0.75rem',
-    background: '#F5EFE6',
-  },
-  btnArchiver: {
-    background: '#8B6F47', color: 'white', border: 'none',
-    width: '68px', height: '68px', borderRadius: '50%',
-    fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer',
-    display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', gap: '0.2rem',
-  },
-  btnSupprimerSwipe: {
-    background: '#C0392B', color: 'white', border: 'none',
-    width: '68px', height: '68px', borderRadius: '50%',
-    fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer',
-    display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', gap: '0.2rem',
-  },
+  swipeActions: { position: 'absolute', right: 0, top: 0, bottom: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', paddingRight: '0.75rem', background: '#F5EFE6' },
+  btnArchiver: { background: '#8B6F47', color: 'white', border: 'none', width: '68px', height: '68px', borderRadius: '50%', fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' },
+  btnSupprimerSwipe: { background: '#C0392B', color: 'white', border: 'none', width: '68px', height: '68px', borderRadius: '50%', fontSize: '0.6rem', fontWeight: '600', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' },
   card: { background: 'white', borderRadius: '12px', padding: '1rem', cursor: 'pointer', position: 'relative', zIndex: 1 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   cardInfo: { flex: 1 },
   cardDate: { fontSize: '0.9rem', fontWeight: '600', color: '#1A1209' },
-  cardDetail: { fontSize: '0.8rem', color: '#9B8B7A', marginTop: '0.2rem' },
+  cardDetail: { fontSize: '0.8rem', color: '#9B8B7A', marginTop: '0.3rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' },
   cardStatut: { fontSize: '0.8rem', color: '#27AE60', fontWeight: '600' },
   btnReprendre: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '8px', padding: '0.4rem 0.75rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' },
   detail: { marginTop: '1rem', borderTop: '1px solid #F5EFE6', paddingTop: '1rem' },
   detailTitre: { fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9B8B7A', marginBottom: '0.75rem' },
   detailLigne: { background: '#F5EFE6', borderRadius: '8px', padding: '0.75rem', marginBottom: '0.5rem' },
   detailNom: { fontSize: '0.85rem', fontWeight: '600', color: '#1A1209' },
-  detailRef: { fontSize: '0.7rem', color: '#9B8B7A', marginTop: '0.1rem' },
   detailTailles: { fontSize: '0.75rem', color: '#8B6F47', marginTop: '0.25rem' },
   detailPrix: { fontSize: '0.8rem', color: '#1A1209', fontWeight: '600', marginTop: '0.25rem' },
   detailTotaux: { background: '#F5EFE6', borderRadius: '8px', padding: '0.75rem', marginTop: '0.5rem' },

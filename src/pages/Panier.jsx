@@ -70,8 +70,11 @@ export default function Panier() {
       return { reference: l.reference, nom: l.nom, coloris: l.coloris, prix: l.prix, qtys: l.qtys, total_paires: qty, total_ht: qty * l.prix }
     })
 
+    const saisons = [...new Set(panier.map(l => l.saison).filter(Boolean))]
+    const saisonLabel = saisons.length === 1 ? saisons[0] : saisons.join(', ')
+
     await supabase.from('commandes').insert({
-      client_id: user.id, lignes, total_ht: totalHT, total_paires: totalPaires, statut: 'validée'
+      client_id: user.id, lignes, total_ht: totalHT, total_paires: totalPaires, statut: 'validée', saison: saisonLabel
     })
 
     try {
@@ -143,7 +146,7 @@ export default function Panier() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#1A1209' }}>{l.reference} — {l.coloris}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#9B8B7A', marginTop: '0.1rem' }}>{l.prix} € / paire</div>
+                      <div style={{ fontSize: '0.75rem', color: '#9B8B7A', marginTop: '0.1rem' }}>{l.saison} · {l.prix} € / paire</div>
                     </div>
                     <button style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: '1rem' }} onClick={() => supprimerLigne(l.id)}>✕</button>
                   </div>

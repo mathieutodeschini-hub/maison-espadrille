@@ -91,6 +91,7 @@ export default function Catalogue() {
         prix: varianteOuverte.prix,
         tailles: varianteOuverte.tailles,
         photo_url: varianteOuverte.photo_url,
+        saison: modeleOuvert.saison,
         qtys,
       }
       if (existe) {
@@ -128,9 +129,7 @@ export default function Catalogue() {
     return Object.values(ligne.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
   }
 
-  if (loading) return (
-    <div style={styles.loading}>Chargement du catalogue...</div>
-  )
+  if (loading) return <div style={styles.loading}>Chargement du catalogue...</div>
 
   return (
     <div style={styles.container}>
@@ -178,13 +177,12 @@ export default function Catalogue() {
         })}
       </div>
 
-      {/* Modal choix coloris */}
       {modeleOuvert && !varianteOuverte && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setModeleOuvert(null)}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
               <div>
-                <div style={styles.modalRef}>{modeleOuvert.reference}</div>
+                <div style={styles.modalRef}>{modeleOuvert.reference} · {modeleOuvert.saison}</div>
                 <div style={styles.modalTitre}>Choisir un coloris</div>
               </div>
               <button style={styles.btnFermer} onClick={() => setModeleOuvert(null)}>✕</button>
@@ -209,7 +207,6 @@ export default function Catalogue() {
         </div>
       )}
 
-      {/* Modal sélection tailles */}
       {varianteOuverte && modeleOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setVarianteOuverte(null)}>
           <div style={styles.modal}>
@@ -218,7 +215,7 @@ export default function Catalogue() {
                 <div style={styles.modalRef}>{modeleOuvert.reference} — {varianteOuverte.coloris}</div>
                 <div style={styles.modalPrix}>{Number(varianteOuverte.prix).toFixed(2)} € / paire</div>
               </div>
-              <button style={styles.btnFermer} onClick={() => { setVarianteOuverte(null) }}>←</button>
+              <button style={styles.btnFermer} onClick={() => setVarianteOuverte(null)}>←</button>
             </div>
             {varianteOuverte.photo_url && (
               <img src={varianteOuverte.photo_url} alt={varianteOuverte.coloris} style={styles.modalPhoto} />
