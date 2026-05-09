@@ -22,20 +22,11 @@ export default function Catalogue() {
   }, [])
 
   const chargerModeles = async () => {
-    const { data: m } = await supabase
-      .from('modeles')
-      .select('*')
-      .eq('actif', true)
-      .order('reference')
-
+    const { data: m } = await supabase.from('modeles').select('*').eq('actif', true).order('reference')
     if (m) {
       const modelesAvecVariantes = await Promise.all(
         m.map(async (modele) => {
-          const { data: variantes } = await supabase
-            .from('variantes')
-            .select('*')
-            .eq('modele_id', modele.id)
-            .eq('actif', true)
+          const { data: variantes } = await supabase.from('variantes').select('*').eq('modele_id', modele.id).eq('actif', true)
           return { ...modele, variantes: variantes || [] }
         })
       )
@@ -74,31 +65,20 @@ export default function Catalogue() {
   const validerVariante = () => {
     if (!varianteOuverte || !modeleOuvert) return
     const totalQty = Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)
-    let nouveauPanier
     const key = varianteOuverte.id
-
+    let nouveauPanier
     if (totalQty === 0) {
       nouveauPanier = panier.filter(l => l.varianteId !== key)
     } else {
-      const existe = panier.find(l => l.varianteId === key)
       const ligne = {
-        id: key,
-        varianteId: key,
-        modeleId: modeleOuvert.id,
-        reference: modeleOuvert.reference,
-        nom: modeleOuvert.reference,
-        coloris: varianteOuverte.coloris,
-        prix: varianteOuverte.prix,
-        tailles: varianteOuverte.tailles,
-        photo_url: varianteOuverte.photo_url,
-        saison: modeleOuvert.saison,
-        qtys,
+        id: key, varianteId: key, modeleId: modeleOuvert.id,
+        reference: modeleOuvert.reference, nom: modeleOuvert.reference,
+        coloris: varianteOuverte.coloris, prix: varianteOuverte.prix,
+        tailles: varianteOuverte.tailles, photo_url: varianteOuverte.photo_url,
+        saison: modeleOuvert.saison, qtys,
       }
-      if (existe) {
-        nouveauPanier = panier.map(l => l.varianteId === key ? ligne : l)
-      } else {
-        nouveauPanier = [...panier, ligne]
-      }
+      const existe = panier.find(l => l.varianteId === key)
+      nouveauPanier = existe ? panier.map(l => l.varianteId === key ? ligne : l) : [...panier, ligne]
     }
     sauvegarderPanier(nouveauPanier)
     setVarianteOuverte(null)
@@ -109,6 +89,15 @@ export default function Catalogue() {
   const totalPanier = panier.reduce((sum, l) =>
     sum + Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
 
+  const getPanierQtyForModele = (modele) =>
+    panier.filter(l => l.modeleId === modele.id)
+      .reduce((sum, l) => sum + Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
+
+  const getPanierQtyForVariante = (varianteId) => {
+    const ligne = panier.find(l => l.varianteId === varianteId)
+    return ligne ? Object.values(ligne.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) : 0
+  }
+
   const modelesFiltres = modeles.filter(m => {
     const matchSaison = saisonActive === 'toutes' || m.saison === saisonActive
     const matchRecherche = !recherche ||
@@ -117,75 +106,99 @@ export default function Catalogue() {
     return matchSaison && matchRecherche && m.variantes?.length > 0
   })
 
-  const getPanierQtyForModele = (modele) => {
-    return panier
-      .filter(l => l.modeleId === modele.id)
-      .reduce((sum, l) => sum + Object.values(l.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0)
-  }
-
-  const getPanierQtyForVariante = (varianteId) => {
-    const ligne = panier.find(l => l.varianteId === varianteId)
-    if (!ligne) return 0
-    return Object.values(ligne.qtys || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
-  }
-
-  if (loading) return <div style={styles.loading}>Chargement du catalogue...</div>
+  if (loading) return <div style={styles.loading}>Chargement...</div>
 
   return (
     <div style={styles.container}>
+      {/* Header */}
       <div style={styles.header}>
         <Menu navigate={navigate} panierCount={totalPanier} />
-        <h1 style={styles.logo}>Catalogue</h1>
+        <h1 style={styles.headerTitre}>Catalogue</h1>
         <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
-          🛒 {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
+          🛒
+          {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
         </button>
       </div>
 
-      <div style={styles.searchBar}>
-        <input
-          style={styles.search}
-          placeholder="Référence ou coloris..."
-          value={recherche}
-          onChange={e => setRecherche(e.target.value)}
-        />
+      {/* Recherche */}
+      <div style={styles.searchWrap}>
+        <div style={styles.searchBox}>
+          <span style={styles.searchIcon}>🔍</span>
+          <input
+            style={styles.searchInput}
+            placeholder="Rechercher un produit..."
+            value={recherche}
+            onChange={e => setRecherche(e.target.value)}
+          />
+          {recherche && (
+            <button style={styles.searchClear} onClick={() => setRecherche('')}>✕</button>
+          )}
+        </div>
       </div>
 
-      <div style={styles.saisons}>
-        <button style={{ ...styles.saisonBtn, ...(saisonActive === 'toutes' ? styles.saisonActive : {}) }} onClick={() => setSaisonActive('toutes')}>Toutes</button>
+      {/* Filtres saisons */}
+      <div style={styles.filtresWrap}>
+        <button
+          style={{ ...styles.filtreBtn, ...(saisonActive === 'toutes' ? styles.filtreActif : {}) }}
+          onClick={() => setSaisonActive('toutes')}
+        >
+          Toutes
+        </button>
         {saisons.map(s => (
-          <button key={s} style={{ ...styles.saisonBtn, ...(saisonActive === s ? styles.saisonActive : {}) }} onClick={() => setSaisonActive(s)}>{s}</button>
+          <button
+            key={s}
+            style={{ ...styles.filtreBtn, ...(saisonActive === s ? styles.filtreActif : {}) }}
+            onClick={() => setSaisonActive(s)}
+          >
+            {s}
+          </button>
         ))}
       </div>
 
-      <div style={styles.grid}>
-        {modelesFiltres.length === 0 && <div style={styles.vide}>Aucun produit trouvé</div>}
-        {modelesFiltres.map(m => {
-          const qty = getPanierQtyForModele(m)
-          const photoUrl = m.variantes?.[0]?.photo_url
-          return (
-            <div key={m.id} style={{ ...styles.card, ...(qty > 0 ? styles.cardActive : {}) }} onClick={() => ouvrirModele(m)}>
-              {photoUrl
-                ? <img src={photoUrl} alt={m.reference} style={styles.photo} />
-                : <div style={styles.photoPlaceholder}>👟</div>
-              }
-              {qty > 0 && <div style={styles.cardBadge}>{qty}</div>}
-              <div style={styles.cardRef}>{m.reference}</div>
-              <div style={styles.cardColoris}>{m.variantes?.length} coloris</div>
-              <div style={styles.cardPrix}>à partir de {Math.min(...m.variantes.map(v => v.prix)).toFixed(2)} €</div>
-            </div>
-          )
-        })}
+      {/* Grille produits */}
+      <div style={styles.content}>
+        {modelesFiltres.length === 0 ? (
+          <div style={styles.vide}>Aucun produit trouvé</div>
+        ) : (
+          <div style={styles.grid}>
+            {modelesFiltres.map(m => {
+              const qty = getPanierQtyForModele(m)
+              const photoUrl = m.variantes?.[0]?.photo_url
+              const prixMin = Math.min(...m.variantes.map(v => v.prix))
+              return (
+                <div key={m.id} style={{ ...styles.card, ...(qty > 0 ? styles.cardActive : {}) }} onClick={() => ouvrirModele(m)}>
+                  <div style={styles.cardImgWrap}>
+                    {photoUrl
+                      ? <img src={photoUrl} alt={m.reference} style={styles.cardImg} />
+                      : <div style={styles.cardImgPlaceholder}>👟</div>
+                    }
+                    {qty > 0 && <div style={styles.cardBadge}>{qty}</div>}
+                    <div style={styles.cardSaison}>{m.saison}</div>
+                  </div>
+                  <div style={styles.cardBody}>
+                    <div style={styles.cardRef}>{m.reference}</div>
+                    <div style={styles.cardColoris}>{m.variantes?.length} coloris</div>
+                    <div style={styles.cardPrix}>{prixMin.toFixed(2)} €</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
+      {/* Modal coloris */}
       {modeleOuvert && !varianteOuverte && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setModeleOuvert(null)}>
           <div style={styles.modal}>
+            <div style={styles.modalHandle} />
             <div style={styles.modalHeader}>
               <div>
-                <div style={styles.modalRef}>{modeleOuvert.reference} · {modeleOuvert.saison}</div>
-                <div style={styles.modalTitre}>Choisir un coloris</div>
+                <div style={styles.modalSaison}>{modeleOuvert.saison}</div>
+                <div style={styles.modalTitre}>{modeleOuvert.reference}</div>
+                <div style={styles.modalSub}>Choisir un coloris</div>
               </div>
-              <button style={styles.btnFermer} onClick={() => setModeleOuvert(null)}>✕</button>
+              <button style={styles.modalClose} onClick={() => setModeleOuvert(null)}>✕</button>
             </div>
             <div style={styles.colorisGrid}>
               {modeleOuvert.variantes?.map(v => {
@@ -193,8 +206,8 @@ export default function Catalogue() {
                 return (
                   <div key={v.id} style={{ ...styles.colorisCard, ...(qty > 0 ? styles.colorisActif : {}) }} onClick={() => ouvrirVariante(v)}>
                     {v.photo_url
-                      ? <img src={v.photo_url} alt={v.coloris} style={styles.colorisPhoto} />
-                      : <div style={styles.colorisPhotoPlaceholder}>👟</div>
+                      ? <img src={v.photo_url} alt={v.coloris} style={styles.colorisImg} />
+                      : <div style={styles.colorisImgPlaceholder}>👟</div>
                     }
                     {qty > 0 && <div style={styles.colorisBadge}>{qty}</div>}
                     <div style={styles.colorisNom}>{v.coloris}</div>
@@ -207,37 +220,52 @@ export default function Catalogue() {
         </div>
       )}
 
+      {/* Modal tailles */}
       {varianteOuverte && modeleOuvert && (
         <div style={styles.overlay} onClick={e => e.target === e.currentTarget && setVarianteOuverte(null)}>
           <div style={styles.modal}>
+            <div style={styles.modalHandle} />
             <div style={styles.modalHeader}>
-              <div>
-                <div style={styles.modalRef}>{modeleOuvert.reference} — {varianteOuverte.coloris}</div>
-                <div style={styles.modalPrix}>{Number(varianteOuverte.prix).toFixed(2)} € / paire</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {varianteOuverte.photo_url && (
+                  <img src={varianteOuverte.photo_url} alt={varianteOuverte.coloris} style={styles.modalThumb} />
+                )}
+                <div>
+                  <div style={styles.modalTitre}>{modeleOuvert.reference}</div>
+                  <div style={styles.modalSub}>Coloris : {varianteOuverte.coloris}</div>
+                  <div style={styles.modalPrix}>{Number(varianteOuverte.prix).toFixed(2)} € / paire</div>
+                </div>
               </div>
-              <button style={styles.btnFermer} onClick={() => setVarianteOuverte(null)}>←</button>
+              <button style={styles.modalClose} onClick={() => setVarianteOuverte(null)}>←</button>
             </div>
-            {varianteOuverte.photo_url && (
-              <img src={varianteOuverte.photo_url} alt={varianteOuverte.coloris} style={styles.modalPhoto} />
-            )}
+
+            <div style={styles.sizesLabel}>Sélectionner les quantités par taille</div>
             <div style={styles.sizesGrid}>
               {varianteOuverte.tailles?.map(t => (
                 <div key={t} style={styles.sizeItem}>
                   <div style={styles.sizeLabel}>T.{t}</div>
                   <div style={styles.sizeControls}>
                     <button style={styles.btnQty} onClick={() => updateQty(t, -1)}>−</button>
-                    <span style={styles.sizeQty}>{parseInt(qtys[t]) || 0}</span>
+                    <span style={{ ...styles.sizeQty, ...(parseInt(qtys[t]) > 0 ? styles.sizeQtyActive : {}) }}>
+                      {parseInt(qtys[t]) || 0}
+                    </span>
                     <button style={styles.btnQty} onClick={() => updateQty(t, 1)}>+</button>
                   </div>
                 </div>
               ))}
             </div>
+
             <div style={styles.modalFooter}>
               <div style={styles.modalTotal}>
-                {Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)} paires —{' '}
-                {(Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0) * varianteOuverte.prix).toFixed(2)} € HT
+                <span style={styles.modalTotalLabel}>Total</span>
+                <span style={styles.modalTotalVal}>
+                  {Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0)} paires —{' '}
+                  {(Object.values(qtys).reduce((a, b) => a + (parseInt(b) || 0), 0) * varianteOuverte.prix).toFixed(2)} €
+                </span>
               </div>
-              <button style={styles.btnValider} onClick={validerVariante}>Ajouter</button>
+              <button style={styles.btnAjouter} onClick={validerVariante}>
+                Ajouter au panier
+              </button>
             </div>
           </div>
         </div>
@@ -247,50 +275,72 @@ export default function Catalogue() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#F5EFE6', paddingBottom: '1rem' },
-  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#9B8B7A' },
-  header: { background: 'white', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', position: 'sticky', top: 0, zIndex: 10 },
-  logo: { fontFamily: 'Georgia, serif', fontSize: '1.1rem', color: '#1A1209' },
-  btnPanier: { background: '#F5EFE6', border: 'none', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '1.2rem', cursor: 'pointer', position: 'relative' },
-  badge: { position: 'absolute', top: '-4px', right: '-4px', background: '#C0392B', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  searchBar: { padding: '0.75rem 1rem 0' },
-  search: { width: '100%', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '0.65rem 1rem', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', color: '#1A1209', background: 'white' },
-  saisons: { display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.75rem 1rem 0.25rem' },
-  saisonBtn: { background: '#F5EFE6', border: '1px solid #E8DDD0', borderRadius: '20px', padding: '0.35rem 0.85rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', color: '#1A1209' },
-  saisonActive: { background: '#1A1209', color: 'white', border: '1px solid #1A1209' },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', padding: '0.75rem 1rem 1rem' },
-  vide: { gridColumn: '1/-1', textAlign: 'center', color: '#9B8B7A', padding: '3rem' },
-  card: { background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', cursor: 'pointer', position: 'relative', border: '2px solid transparent' },
-  cardActive: { border: '2px solid #8B6F47' },
-  photo: { width: '100%', aspectRatio: '1', objectFit: 'cover' },
-  photoPlaceholder: { width: '100%', aspectRatio: '1', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' },
-  cardBadge: { position: 'absolute', top: '0.5rem', right: '0.5rem', background: '#8B6F47', color: 'white', borderRadius: '20px', padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontWeight: '700' },
-  cardRef: { fontSize: '0.85rem', fontWeight: '600', padding: '0.5rem 0.75rem 0.1rem', color: '#1A1209' },
-  cardColoris: { fontSize: '0.75rem', color: '#9B8B7A', padding: '0 0.75rem' },
-  cardPrix: { fontSize: '0.85rem', fontWeight: '700', color: '#8B6F47', padding: '0.1rem 0.75rem 0.75rem' },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' },
-  modal: { background: 'white', borderRadius: '20px 20px 0 0', padding: '1.5rem', width: '100%', maxHeight: '85vh', overflowY: 'auto' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' },
-  modalRef: { fontSize: '0.75rem', color: '#9B8B7A', fontWeight: '600' },
-  modalTitre: { fontSize: '1.1rem', fontWeight: '700', color: '#1A1209', marginTop: '0.2rem' },
-  modalPrix: { fontSize: '0.95rem', color: '#8B6F47', fontWeight: '600', marginTop: '0.2rem' },
-  btnFermer: { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#9B8B7A', padding: '0' },
-  colorisGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' },
-  colorisCard: { background: '#F5EFE6', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', border: '2px solid transparent', position: 'relative' },
-  colorisActif: { border: '2px solid #8B6F47' },
-  colorisPhoto: { width: '100%', aspectRatio: '1', objectFit: 'cover' },
-  colorisPhotoPlaceholder: { width: '100%', aspectRatio: '1', background: '#E8DDD0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' },
-  colorisBadge: { position: 'absolute', top: '0.3rem', right: '0.3rem', background: '#8B6F47', color: 'white', borderRadius: '20px', padding: '0.1rem 0.4rem', fontSize: '0.65rem', fontWeight: '700' },
-  colorisNom: { fontSize: '0.75rem', fontWeight: '600', padding: '0.35rem 0.5rem 0.1rem', color: '#1A1209' },
-  colorisPrix: { fontSize: '0.7rem', color: '#8B6F47', fontWeight: '600', padding: '0 0.5rem 0.4rem' },
-  modalPhoto: { width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '10px', marginBottom: '1rem' },
-  sizesGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' },
-  sizeItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' },
-  sizeLabel: { fontSize: '0.75rem', fontWeight: '700', color: '#9B8B7A' },
-  sizeControls: { display: 'flex', alignItems: 'center', gap: '0.25rem' },
-  btnQty: { background: '#F5EFE6', border: 'none', borderRadius: '6px', width: '28px', height: '28px', fontSize: '1.1rem', cursor: 'pointer', color: '#1A1209', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600' },
-  sizeQty: { fontSize: '1rem', fontWeight: '600', color: '#1A1209', minWidth: '22px', textAlign: 'center' },
-  modalFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  modalTotal: { fontSize: '0.9rem', color: '#9B8B7A' },
-  btnValider: { background: '#1A1209', color: 'white', border: 'none', borderRadius: '8px', padding: '0.75rem 1.5rem', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer' },
+  container: { minHeight: '100vh', background: 'var(--beige)', paddingBottom: '2rem' },
+  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-muted)' },
+
+  header: { background: 'var(--beige-card)', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10 },
+  headerTitre: { fontSize: '1.1rem', fontFamily: 'Playfair Display, serif', color: 'var(--brown-dark)', fontWeight: '600' },
+  btnPanier: { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', position: 'relative', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: '-2px', right: '-2px', background: 'var(--red)', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' },
+
+  searchWrap: { padding: '1rem 1.25rem 0.5rem' },
+  searchBox: { background: 'var(--beige-card)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.5rem' },
+  searchIcon: { fontSize: '0.9rem', color: 'var(--text-muted)' },
+  searchInput: { flex: 1, border: 'none', background: 'transparent', padding: '0.75rem 0', fontSize: '0.9rem', outline: 'none', color: 'var(--brown-dark)' },
+  searchClear: { background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' },
+
+  filtresWrap: { display: 'flex', gap: '0.5rem', padding: '0.5rem 1.25rem 1rem', overflowX: 'auto' },
+  filtreBtn: { background: 'var(--beige-card)', border: '1px solid var(--border)', borderRadius: '20px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--text-muted)', fontWeight: '500' },
+  filtreActif: { background: 'var(--brown-dark)', color: 'white', border: '1px solid var(--brown-dark)' },
+
+  content: { padding: '0 1.25rem' },
+  vide: { textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', fontSize: '0.9rem' },
+
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' },
+  card: { background: 'var(--beige-card)', borderRadius: '16px', overflow: 'hidden', border: '1.5px solid var(--border)', cursor: 'pointer', transition: 'transform 0.15s' },
+  cardActive: { border: '1.5px solid var(--brown-mid)' },
+  cardImgWrap: { position: 'relative', aspectRatio: '1', background: 'var(--beige-dark)' },
+  cardImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  cardImgPlaceholder: { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' },
+  cardBadge: { position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'var(--brown-mid)', color: 'white', borderRadius: '20px', padding: '0.15rem 0.5rem', fontSize: '0.7rem', fontWeight: '700' },
+  cardSaison: { position: 'absolute', bottom: '0.5rem', left: '0.5rem', background: 'rgba(44,26,14,0.7)', color: 'white', borderRadius: '6px', padding: '0.1rem 0.4rem', fontSize: '0.65rem', fontWeight: '600', backdropFilter: 'blur(4px)' },
+  cardBody: { padding: '0.75rem' },
+  cardRef: { fontSize: '0.88rem', fontWeight: '600', color: 'var(--brown-dark)', marginBottom: '0.2rem' },
+  cardColoris: { fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' },
+  cardPrix: { fontSize: '0.9rem', fontWeight: '700', color: 'var(--brown-mid)' },
+
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(44,26,14,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end', backdropFilter: 'blur(2px)' },
+  modal: { background: 'var(--beige-card)', borderRadius: '24px 24px 0 0', padding: '0 1.5rem 2rem', width: '100%', maxHeight: '88vh', overflowY: 'auto' },
+  modalHandle: { width: '40px', height: '4px', background: 'var(--border)', borderRadius: '2px', margin: '0.75rem auto 0' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '1rem 0 1rem' },
+  modalSaison: { fontSize: '0.7rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.2rem' },
+  modalTitre: { fontSize: '1.2rem', fontFamily: 'Playfair Display, serif', fontWeight: '600', color: 'var(--brown-dark)' },
+  modalSub: { fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.2rem' },
+  modalPrix: { fontSize: '0.95rem', color: 'var(--brown-mid)', fontWeight: '600', marginTop: '0.2rem' },
+  modalClose: { background: 'var(--beige)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--brown-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  modalThumb: { width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px' },
+
+  colorisGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', paddingBottom: '1rem' },
+  colorisCard: { background: 'var(--beige)', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', border: '1.5px solid transparent', position: 'relative' },
+  colorisActif: { border: '1.5px solid var(--brown-mid)' },
+  colorisImg: { width: '100%', aspectRatio: '1', objectFit: 'cover' },
+  colorisImgPlaceholder: { width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', background: 'var(--beige-dark)' },
+  colorisBadge: { position: 'absolute', top: '0.3rem', right: '0.3rem', background: 'var(--brown-mid)', color: 'white', borderRadius: '20px', padding: '0.1rem 0.4rem', fontSize: '0.6rem', fontWeight: '700' },
+  colorisNom: { fontSize: '0.75rem', fontWeight: '600', padding: '0.4rem 0.5rem 0.1rem', color: 'var(--brown-dark)' },
+  colorisPrix: { fontSize: '0.72rem', color: 'var(--brown-mid)', fontWeight: '600', padding: '0 0.5rem 0.5rem' },
+
+  sizesLabel: { fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.75rem' },
+  sizesGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.6rem', marginBottom: '1.5rem' },
+  sizeItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' },
+  sizeLabel: { fontSize: '0.72rem', fontWeight: '600', color: 'var(--text-muted)' },
+  sizeControls: { display: 'flex', alignItems: 'center', gap: '0.3rem' },
+  btnQty: { background: 'var(--beige)', border: '1px solid var(--border)', borderRadius: '8px', width: '28px', height: '28px', fontSize: '1rem', cursor: 'pointer', color: 'var(--brown-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600' },
+  sizeQty: { fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-muted)', minWidth: '20px', textAlign: 'center' },
+  sizeQtyActive: { color: 'var(--brown-dark)' },
+
+  modalFooter: { borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  modalTotal: { display: 'flex', flexDirection: 'column', gap: '0.1rem' },
+  modalTotalLabel: { fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  modalTotalVal: { fontSize: '0.9rem', fontWeight: '600', color: 'var(--brown-dark)' },
+  btnAjouter: { background: 'var(--brown-dark)', color: 'white', border: 'none', borderRadius: '25px', padding: '0.75rem 1.5rem', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer' },
 }
