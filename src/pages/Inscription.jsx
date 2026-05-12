@@ -17,6 +17,7 @@ export default function Inscription() {
   const [factIdentique, setFactIdentique] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [etape, setEtape] = useState(1)
   const navigate = useNavigate()
 
   const update = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -25,19 +26,23 @@ export default function Inscription() {
   const getAdresseLiv = () => livIdentique ? getAdresseMagasin() : `${form.liv_voie}, ${form.liv_cp} ${form.liv_ville}`
   const getAdresseFact = () => factIdentique ? getAdresseMagasin() : `${form.fact_voie}, ${form.fact_cp} ${form.fact_ville}`
 
+  const passerEtape2 = () => {
+    if (!form.prenom || !form.nom || !form.email || !form.password || !form.magasin || !form.adresse_voie || !form.adresse_cp || !form.adresse_ville) {
+      setError('Hop, hop, hop pas si vite... Veuillez remplir tous les champs.')
+      return
+    }
+    setError('')
+    setEtape(2)
+  }
+
   const handleInscription = async (e) => {
     e.preventDefault()
     setError('')
 
-    const champsVides = [
-      form.prenom, form.nom, form.email, form.password,
-      form.magasin, form.adresse_voie, form.adresse_cp, form.adresse_ville,
-      form.ref_commerciale,
-      ...(!livIdentique ? [form.liv_voie, form.liv_cp, form.liv_ville] : []),
-      ...(!factIdentique ? [form.fact_voie, form.fact_cp, form.fact_ville] : []),
-    ].some(v => !v || v.trim() === '')
+    const champsLivVides = !livIdentique && (!form.liv_voie || !form.liv_cp || !form.liv_ville)
+    const champsFactVides = !factIdentique && (!form.fact_voie || !form.fact_cp || !form.fact_ville)
 
-    if (champsVides) {
+    if (champsLivVides || champsFactVides || !form.ref_commerciale) {
       setError('Hop, hop, hop pas si vite... Veuillez remplir tous les champs.')
       return
     }
@@ -76,162 +81,181 @@ export default function Inscription() {
       return
     }
 
-    navigate('/catalogue')
+    navigate('/accueil')
     setLoading(false)
   }
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Créer mon compte</h1>
-        <p style={styles.subtitle}>La Maison de l'Espadrille</p>
-        <form onSubmit={handleInscription} style={styles.form}>
+      {/* Header */}
+      <div style={styles.header}>
+        <Link to="/login" style={styles.btnBack}>‹</Link>
+        <h1 style={styles.headerTitre}>Créer mon compte</h1>
+        <div style={{ width: 32 }} />
+      </div>
 
-          <p style={styles.section}>Informations personnelles</p>
-          <input style={styles.input} placeholder="Prénom" value={form.prenom} onChange={e => update('prenom', e.target.value)} />
-          <input style={styles.input} placeholder="Nom" value={form.nom} onChange={e => update('nom', e.target.value)} />
-          <input style={styles.input} type="email" placeholder="Email" value={form.email} onChange={e => update('email', e.target.value)} />
-          <input style={styles.input} type="password" placeholder="Mot de passe" value={form.password} onChange={e => update('password', e.target.value)} />
+      {/* Progress */}
+      <div style={styles.progress}>
+        <div style={styles.progressBar}>
+          <div style={{ ...styles.progressFill, width: etape === 1 ? '50%' : '100%' }} />
+        </div>
+        <div style={styles.progressLabel}>Étape {etape} / 2</div>
+      </div>
 
-          <p style={styles.section}>Informations magasin</p>
-          <input style={styles.input} placeholder="Nom du magasin" value={form.magasin} onChange={e => update('magasin', e.target.value)} />
-          <input style={styles.input} placeholder="Numéro et nom de la voie" value={form.adresse_voie} onChange={e => update('adresse_voie', e.target.value)} />
-          <div style={styles.row}>
-            <input style={{...styles.input, width:'35%'}} placeholder="Code postal" value={form.adresse_cp} onChange={e => update('adresse_cp', e.target.value)} />
-            <input style={{...styles.input, width:'63%'}} placeholder="Ville" value={form.adresse_ville} onChange={e => update('adresse_ville', e.target.value)} />
+      <div style={styles.content}>
+        {etape === 1 && (
+          <div style={styles.formCard}>
+            <h2 style={styles.formTitre}>Informations générales</h2>
+            <p style={styles.formSub}>Vos coordonnées personnelles et magasin</p>
+
+            <div style={styles.sectionLabel}>Informations personnelles</div>
+            <div style={styles.row}>
+              <div style={styles.fieldWrap}>
+                <label style={styles.fieldLabel}>Prénom</label>
+                <input style={styles.input} placeholder="Prénom" value={form.prenom} onChange={e => update('prenom', e.target.value)} />
+              </div>
+              <div style={styles.fieldWrap}>
+                <label style={styles.fieldLabel}>Nom</label>
+                <input style={styles.input} placeholder="Nom" value={form.nom} onChange={e => update('nom', e.target.value)} />
+              </div>
+            </div>
+            <div style={styles.fieldWrap}>
+              <label style={styles.fieldLabel}>Email</label>
+              <input style={styles.input} type="email" placeholder="votre@email.com" value={form.email} onChange={e => update('email', e.target.value)} />
+            </div>
+            <div style={styles.fieldWrap}>
+              <label style={styles.fieldLabel}>Mot de passe</label>
+              <input style={styles.input} type="password" placeholder="••••••••" value={form.password} onChange={e => update('password', e.target.value)} />
+            </div>
+
+            <div style={styles.sectionLabel}>Magasin</div>
+            <div style={styles.fieldWrap}>
+              <label style={styles.fieldLabel}>Nom du magasin</label>
+              <input style={styles.input} placeholder="Nom du magasin" value={form.magasin} onChange={e => update('magasin', e.target.value)} />
+            </div>
+            <div style={styles.fieldWrap}>
+              <label style={styles.fieldLabel}>Adresse</label>
+              <input style={styles.input} placeholder="Numéro et nom de la voie" value={form.adresse_voie} onChange={e => update('adresse_voie', e.target.value)} />
+            </div>
+            <div style={styles.rowSmall}>
+              <div style={{ ...styles.fieldWrap, width: '35%' }}>
+                <label style={styles.fieldLabel}>CP</label>
+                <input style={styles.input} placeholder="CP" value={form.adresse_cp} onChange={e => update('adresse_cp', e.target.value)} />
+              </div>
+              <div style={{ ...styles.fieldWrap, width: '63%' }}>
+                <label style={styles.fieldLabel}>Ville</label>
+                <input style={styles.input} placeholder="Ville" value={form.adresse_ville} onChange={e => update('adresse_ville', e.target.value)} />
+              </div>
+            </div>
+
+            {error && <div style={styles.error}>{error}</div>}
+
+            <button style={styles.btnPrimary} onClick={passerEtape2}>
+              Continuer →
+            </button>
           </div>
+        )}
 
-          <p style={styles.section}>Adresse de livraison</p>
-          <label style={styles.checkbox}>
-            <input type="checkbox" checked={livIdentique} onChange={e => setLivIdentique(e.target.checked)} />
-            <span>Identique à l'adresse du magasin</span>
-          </label>
-          {!livIdentique && (
-            <>
-              <input style={styles.input} placeholder="Numéro et nom de la voie" value={form.liv_voie} onChange={e => update('liv_voie', e.target.value)} />
-              <div style={styles.row}>
-                <input style={{...styles.input, width:'35%'}} placeholder="Code postal" value={form.liv_cp} onChange={e => update('liv_cp', e.target.value)} />
-                <input style={{...styles.input, width:'63%'}} placeholder="Ville" value={form.liv_ville} onChange={e => update('liv_ville', e.target.value)} />
-              </div>
-            </>
-          )}
+        {etape === 2 && (
+          <form onSubmit={handleInscription} style={styles.formCard}>
+            <h2 style={styles.formTitre}>Adresses & accès</h2>
+            <p style={styles.formSub}>Livraison, facturation et code d'accès</p>
 
-          <p style={styles.section}>Adresse de facturation</p>
-          <label style={styles.checkbox}>
-            <input type="checkbox" checked={factIdentique} onChange={e => setFactIdentique(e.target.checked)} />
-            <span>Identique à l'adresse du magasin</span>
-          </label>
-          {!factIdentique && (
-            <>
-              <input style={styles.input} placeholder="Numéro et nom de la voie" value={form.fact_voie} onChange={e => update('fact_voie', e.target.value)} />
-              <div style={styles.row}>
-                <input style={{...styles.input, width:'35%'}} placeholder="Code postal" value={form.fact_cp} onChange={e => update('fact_cp', e.target.value)} />
-                <input style={{...styles.input, width:'63%'}} placeholder="Ville" value={form.fact_ville} onChange={e => update('fact_ville', e.target.value)} />
-              </div>
-            </>
-          )}
+            <div style={styles.sectionLabel}>Adresse de livraison</div>
+            <label style={styles.checkboxLabel}>
+              <input type="checkbox" checked={livIdentique} onChange={e => setLivIdentique(e.target.checked)} style={styles.checkbox} />
+              <span>Identique à l'adresse du magasin</span>
+            </label>
+            {!livIdentique && (
+              <>
+                <div style={styles.fieldWrap}>
+                  <input style={styles.input} placeholder="Numéro et nom de la voie" value={form.liv_voie} onChange={e => update('liv_voie', e.target.value)} />
+                </div>
+                <div style={styles.rowSmall}>
+                  <div style={{ ...styles.fieldWrap, width: '35%' }}>
+                    <input style={styles.input} placeholder="CP" value={form.liv_cp} onChange={e => update('liv_cp', e.target.value)} />
+                  </div>
+                  <div style={{ ...styles.fieldWrap, width: '63%' }}>
+                    <input style={styles.input} placeholder="Ville" value={form.liv_ville} onChange={e => update('liv_ville', e.target.value)} />
+                  </div>
+                </div>
+              </>
+            )}
 
-          <p style={styles.section}>Accès</p>
-          <input style={styles.input} placeholder="Code d'accès" value={form.ref_commerciale} onChange={e => update('ref_commerciale', e.target.value)} />
+            <div style={styles.sectionLabel}>Adresse de facturation</div>
+            <label style={styles.checkboxLabel}>
+              <input type="checkbox" checked={factIdentique} onChange={e => setFactIdentique(e.target.checked)} style={styles.checkbox} />
+              <span>Identique à l'adresse du magasin</span>
+            </label>
+            {!factIdentique && (
+              <>
+                <div style={styles.fieldWrap}>
+                  <input style={styles.input} placeholder="Numéro et nom de la voie" value={form.fact_voie} onChange={e => update('fact_voie', e.target.value)} />
+                </div>
+                <div style={styles.rowSmall}>
+                  <div style={{ ...styles.fieldWrap, width: '35%' }}>
+                    <input style={styles.input} placeholder="CP" value={form.fact_cp} onChange={e => update('fact_cp', e.target.value)} />
+                  </div>
+                  <div style={{ ...styles.fieldWrap, width: '63%' }}>
+                    <input style={styles.input} placeholder="Ville" value={form.fact_ville} onChange={e => update('fact_ville', e.target.value)} />
+                  </div>
+                </div>
+              </>
+            )}
 
-          {error && <p style={styles.error}>{error}</p>}
+            <div style={styles.sectionLabel}>Code d'accès</div>
+            <div style={styles.fieldWrap}>
+              <label style={styles.fieldLabel}>Code communiqué par votre représentant</label>
+              <input style={styles.input} placeholder="Code d'accès" value={form.ref_commerciale} onChange={e => update('ref_commerciale', e.target.value)} />
+            </div>
 
-          <button style={styles.button} type="submit" disabled={loading}>
-            {loading ? 'Création...' : 'Créer mon compte'}
-          </button>
-        </form>
-        <Link to="/login" style={styles.link}>Déjà un compte ? Se connecter</Link>
+            {error && <div style={styles.error}>{error}</div>}
+
+            <div style={styles.btnGroup}>
+              <button type="button" style={styles.btnSecondary} onClick={() => { setEtape(1); setError('') }}>
+                ← Retour
+              </button>
+              <button type="submit" style={styles.btnPrimary} disabled={loading}>
+                {loading ? 'Création...' : 'Créer mon compte'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <p style={styles.loginLink}>
+          Déjà un compte ?{' '}
+          <Link to="/login" style={styles.loginLinkA}>Se connecter</Link>
+        </p>
       </div>
     </div>
   )
 }
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    background: '#F5EFE6',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '1rem',
-  },
-  card: {
-    background: 'white',
-    borderRadius: '16px',
-    padding: '2.5rem 2rem',
-    width: '100%',
-    maxWidth: '400px',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-    textAlign: 'center',
-  },
-  title: {
-    fontFamily: 'Georgia, serif',
-    fontSize: '1.6rem',
-    color: '#1A1209',
-    marginBottom: '0.5rem',
-  },
-  subtitle: {
-    color: '#9B8B7A',
-    fontSize: '0.9rem',
-    marginBottom: '2rem',
-  },
-  section: {
-    textAlign: 'left',
-    fontSize: '0.75rem',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    color: '#9B8B7A',
-    marginTop: '0.5rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem',
-    marginBottom: '1.5rem',
-  },
-  row: {
-    display: 'flex',
-    gap: '0.5rem',
-  },
-  input: {
-    border: '1px solid #E8DDD0',
-    borderRadius: '8px',
-    padding: '0.85rem 1rem',
-    fontSize: '1rem',
-    outline: 'none',
-    width: '100%',
-    textAlign: 'left',
-    boxSizing: 'border-box',
-  },
-  checkbox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.9rem',
-    color: '#1A1209',
-    textAlign: 'left',
-    cursor: 'pointer',
-  },
-  button: {
-    background: '#1A1209',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '0.85rem',
-    fontSize: '1rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '0.5rem',
-  },
-  error: {
-    color: '#C0392B',
-    fontSize: '0.85rem',
-    textAlign: 'left',
-  },
-  link: {
-    color: '#8B6F47',
-    fontSize: '0.9rem',
-    textDecoration: 'none',
-  },
+  container: { minHeight: '100vh', background: 'var(--beige)', paddingBottom: '2rem' },
+  header: { background: 'var(--beige-card)', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10 },
+  btnBack: { background: 'none', border: 'none', fontSize: '1.8rem', cursor: 'pointer', color: 'var(--brown-dark)', lineHeight: 1, textDecoration: 'none', width: '32px', display: 'flex', alignItems: 'center' },
+  headerTitre: { fontSize: '1rem', fontFamily: 'Playfair Display, serif', color: 'var(--brown-dark)', fontWeight: '600' },
+  progress: { padding: '1rem 1.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  progressBar: { flex: 1, height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' },
+  progressFill: { height: '100%', background: 'var(--brown-dark)', borderRadius: '2px', transition: 'width 0.3s ease' },
+  progressLabel: { fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500', whiteSpace: 'nowrap' },
+  content: { padding: '1rem 1.25rem' },
+  formCard: { background: 'var(--beige-card)', borderRadius: '20px', padding: '1.5rem', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+  formTitre: { fontFamily: 'Playfair Display, serif', fontSize: '1.3rem', color: 'var(--brown-dark)' },
+  formSub: { fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '-0.25rem' },
+  sectionLabel: { fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginTop: '0.5rem' },
+  row: { display: 'flex', gap: '0.75rem' },
+  rowSmall: { display: 'flex', gap: '0.5rem' },
+  fieldWrap: { display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: 1 },
+  fieldLabel: { fontSize: '0.72rem', fontWeight: '600', color: 'var(--text-muted)' },
+  input: { border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.9rem', outline: 'none', background: 'var(--beige)', color: 'var(--brown-dark)', width: '100%', boxSizing: 'border-box' },
+  checkboxLabel: { display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.88rem', color: 'var(--brown-dark)', cursor: 'pointer' },
+  checkbox: { width: '16px', height: '16px', accentColor: 'var(--brown-dark)' },
+  error: { background: '#FEE2E2', borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.85rem', color: 'var(--red)' },
+  btnGroup: { display: 'flex', gap: '0.75rem', marginTop: '0.5rem' },
+  btnPrimary: { flex: 1, background: 'var(--brown-dark)', color: 'white', border: 'none', borderRadius: '25px', padding: '0.9rem', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer' },
+  btnSecondary: { flex: 1, background: 'none', color: 'var(--brown-dark)', border: '1px solid var(--border)', borderRadius: '25px', padding: '0.9rem', fontSize: '0.9rem', cursor: 'pointer' },
+  loginLink: { textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '1.25rem' },
+  loginLinkA: { color: 'var(--brown-dark)', fontWeight: '600', textDecoration: 'none' },
 }
