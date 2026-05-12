@@ -3,10 +3,23 @@ import { supabase } from '../supabase'
 import { useNavigate } from 'react-router-dom'
 import Menu from '../components/Menu'
 
+const FAVORIS_KEY = 'lme_favoris'
+
+const loadFavoris = () => {
+  try { return new Set(JSON.parse(localStorage.getItem(FAVORIS_KEY) || '[]')) }
+  catch { return new Set() }
+}
+
+const saveFavoris = (set) => {
+  localStorage.setItem(FAVORIS_KEY, JSON.stringify([...set]))
+}
+
 export default function Catalogue() {
   const [modeles, setModeles] = useState([])
   const [saisons, setSaisons] = useState([])
   const [saisonActive, setSaisonActive] = useState('toutes')
+  const [afficherFavoris, setAfficherFavoris] = useState(false)
+  const [favoris, setFavoris] = useState(loadFavoris())
   const [recherche, setRecherche] = useState('')
   const [panier, setPanier] = useState([])
   const [modeleOuvert, setModeleOuvert] = useState(null)
@@ -40,6 +53,16 @@ export default function Catalogue() {
   const sauvegarderPanier = (nouveauPanier) => {
     setPanier(nouveauPanier)
     localStorage.setItem('panier', JSON.stringify(nouveauPanier))
+  }
+
+  const toggleFavori = (e, modeleId) => {
+    e.stopPropagation()
+    setFavoris(prev => {
+      const next = new Set(prev)
+      if (next.has(modeleId)) { next.delete(modeleId) } else { next.add(modeleId) }
+      saveFavoris(next)
+      return next
+    })
   }
 
   const ouvrirModele = (m) => {
@@ -100,10 +123,11 @@ export default function Catalogue() {
 
   const modelesFiltres = modeles.filter(m => {
     const matchSaison = saisonActive === 'toutes' || m.saison === saisonActive
+    const matchFavoris = !afficherFavoris || favoris.has(m.id)
     const matchRecherche = !recherche ||
       m.reference?.toLowerCase().includes(recherche.toLowerCase()) ||
       m.variantes?.some(v => v.coloris?.toLowerCase().includes(recherche.toLowerCase()))
-    return matchSaison && matchRecherche && m.variantes?.length > 0
+    return matchSaison && matchFavoris && matchRecherche && m.variantes?.length > 0
   })
 
   if (loading) return <div style={styles.loading}>Chargement...</div>
@@ -112,10 +136,14 @@ export default function Catalogue() {
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <Menu navigate={navigate} panierCount={totalPanier} />
+        <Menu navigate={navigate} panierCount={totalPanier} hamburgerColor="var(--brown-dark)" />
         <h1 style={styles.headerTitre}>Catalogue</h1>
         <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
-          🛒
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brown-dark)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 01-8 0"/>
+          </svg>
           {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
         </button>
       </div>
@@ -136,19 +164,33 @@ export default function Catalogue() {
         </div>
       </div>
 
-      {/* Filtres saisons */}
+      {/* Filtres saisons + Favoris */}
       <div style={styles.filtresWrap}>
+        {/* Bouton Favoris */}
         <button
-          style={{ ...styles.filtreBtn, ...(saisonActive === 'toutes' ? styles.filtreActif : {}) }}
-          onClick={() => setSaisonActive('toutes')}
+          style={{ ...styles.filtreBtn, ...styles.filtreFavoris, ...(afficherFavoris ? styles.filtreFavorisActif : {}) }}
+          onClick={() => { setAfficherFavoris(f => !f); setSaisonActive('toutes') }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill={afficherFavoris ? 'white' : 'none'} stroke={afficherFavoris ? 'white' : '#8B6F47'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
+            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+          </svg>
+          Favoris {favoris.size > 0 && `(${favoris.size})`}
+        </button>
+
+        {/* Séparateur */}
+        <div style={styles.filtreSep} />
+
+        <button
+          style={{ ...styles.filtreBtn, ...(!afficherFavoris && saisonActive === 'toutes' ? styles.filtreActif : {}) }}
+          onClick={() => { setSaisonActive('toutes'); setAfficherFavoris(false) }}
         >
           Toutes
         </button>
         {saisons.map(s => (
           <button
             key={s}
-            style={{ ...styles.filtreBtn, ...(saisonActive === s ? styles.filtreActif : {}) }}
-            onClick={() => setSaisonActive(s)}
+            style={{ ...styles.filtreBtn, ...(!afficherFavoris && saisonActive === s ? styles.filtreActif : {}) }}
+            onClick={() => { setSaisonActive(s); setAfficherFavoris(false) }}
           >
             {s}
           </button>
@@ -157,7 +199,15 @@ export default function Catalogue() {
 
       {/* Grille produits */}
       <div style={styles.content}>
-        {modelesFiltres.length === 0 ? (
+        {afficherFavoris && favoris.size === 0 ? (
+          <div style={styles.vide}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🤍</div>
+            <div>Aucun favori pour l'instant</div>
+            <div style={{ fontSize: '0.8rem', marginTop: '0.4rem', color: 'var(--text-muted)' }}>
+              Appuyez sur le ❤️ d'un produit pour l'ajouter
+            </div>
+          </div>
+        ) : modelesFiltres.length === 0 ? (
           <div style={styles.vide}>Aucun produit trouvé</div>
         ) : (
           <div style={styles.grid}>
@@ -165,6 +215,7 @@ export default function Catalogue() {
               const qty = getPanierQtyForModele(m)
               const photoUrl = m.variantes?.[0]?.photo_url
               const prixMin = Math.min(...m.variantes.map(v => v.prix))
+              const estFavori = favoris.has(m.id)
               return (
                 <div key={m.id} style={{ ...styles.card, ...(qty > 0 ? styles.cardActive : {}) }} onClick={() => ouvrirModele(m)}>
                   <div style={styles.cardImgWrap}>
@@ -174,6 +225,15 @@ export default function Catalogue() {
                     }
                     {qty > 0 && <div style={styles.cardBadge}>{qty}</div>}
                     <div style={styles.cardSaison}>{m.saison}</div>
+                    {/* Bouton favori */}
+                    <button
+                      style={{ ...styles.btnFavori, ...(estFavori ? styles.btnFavoriActif : {}) }}
+                      onClick={(e) => toggleFavori(e, m.id)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={estFavori ? 'white' : 'none'} stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                      </svg>
+                    </button>
                   </div>
                   <div style={styles.cardBody}>
                     <div style={styles.cardRef}>{m.reference}</div>
@@ -278,10 +338,22 @@ const styles = {
   container: { minHeight: '100vh', background: 'var(--beige)', paddingBottom: '2rem' },
   loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-muted)' },
 
-  header: { background: 'var(--beige-card)', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10 },
+  header: {
+    background: 'var(--beige-card)', padding: '1rem 1.25rem',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10,
+  },
   headerTitre: { fontSize: '1.1rem', fontFamily: 'Playfair Display, serif', color: 'var(--brown-dark)', fontWeight: '600' },
-  btnPanier: { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', position: 'relative', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: '-2px', right: '-2px', background: 'var(--red)', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' },
+  btnPanier: {
+    background: 'none', border: 'none', cursor: 'pointer', position: 'relative',
+    width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute', top: '-2px', right: '-2px',
+    background: 'var(--red)', color: 'white', borderRadius: '50%',
+    width: '16px', height: '16px', fontSize: '0.65rem',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700',
+  },
 
   searchWrap: { padding: '1rem 1.25rem 0.5rem' },
   searchBox: { background: 'var(--beige-card)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.5rem' },
@@ -289,9 +361,12 @@ const styles = {
   searchInput: { flex: 1, border: 'none', background: 'transparent', padding: '0.75rem 0', fontSize: '0.9rem', outline: 'none', color: 'var(--brown-dark)' },
   searchClear: { background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' },
 
-  filtresWrap: { display: 'flex', gap: '0.5rem', padding: '0.5rem 1.25rem 1rem', overflowX: 'auto' },
-  filtreBtn: { background: 'var(--beige-card)', border: '1px solid var(--border)', borderRadius: '20px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--text-muted)', fontWeight: '500' },
+  filtresWrap: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem 1rem', overflowX: 'auto' },
+  filtreBtn: { background: 'var(--beige-card)', border: '1px solid var(--border)', borderRadius: '20px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--text-muted)', fontWeight: '500', flexShrink: 0 },
   filtreActif: { background: 'var(--brown-dark)', color: 'white', border: '1px solid var(--brown-dark)' },
+  filtreFavoris: { display: 'flex', alignItems: 'center', color: 'var(--brown-mid)', border: '1px solid var(--brown-mid)', fontWeight: '600' },
+  filtreFavorisActif: { background: '#C0392B', color: 'white', border: '1px solid #C0392B' },
+  filtreSep: { width: '1px', height: '20px', background: 'var(--border)', flexShrink: 0 },
 
   content: { padding: '0 1.25rem' },
   vide: { textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', fontSize: '0.9rem' },
@@ -304,6 +379,16 @@ const styles = {
   cardImgPlaceholder: { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' },
   cardBadge: { position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'var(--brown-mid)', color: 'white', borderRadius: '20px', padding: '0.15rem 0.5rem', fontSize: '0.7rem', fontWeight: '700' },
   cardSaison: { position: 'absolute', bottom: '0.5rem', left: '0.5rem', background: 'rgba(44,26,14,0.7)', color: 'white', borderRadius: '6px', padding: '0.1rem 0.4rem', fontSize: '0.65rem', fontWeight: '600', backdropFilter: 'blur(4px)' },
+
+  btnFavori: {
+    position: 'absolute', top: '0.5rem', left: '0.5rem',
+    background: 'rgba(44,26,14,0.35)', border: 'none', borderRadius: '50%',
+    width: '28px', height: '28px', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    backdropFilter: 'blur(4px)', transition: 'background 0.2s',
+  },
+  btnFavoriActif: { background: '#C0392B' },
+
   cardBody: { padding: '0.75rem' },
   cardRef: { fontSize: '0.88rem', fontWeight: '600', color: 'var(--brown-dark)', marginBottom: '0.2rem' },
   cardColoris: { fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' },

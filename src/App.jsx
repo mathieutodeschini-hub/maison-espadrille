@@ -10,6 +10,9 @@ import Panier from './pages/Panier'
 import Historique from './pages/Historique'
 import Admin from './pages/Admin'
 import Profil from './pages/Profil'
+import MentionsLegales from './pages/MentionsLegales'
+import CGV from './pages/CGV'
+
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -53,6 +56,8 @@ function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<Navigate to={session ? "/accueil" : "/login"} />} />
         <Route path="/profil" element={session ? <Profil /> : <Navigate to="/login" />} />
+        <Route path="/mentions-legales" element={<MentionsLegales />} />
+        <Route path="/cgv" element={<CGV />} />
       </Routes>
     </BrowserRouter>
   )

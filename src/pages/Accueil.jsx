@@ -50,10 +50,15 @@ export default function Accueil() {
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <Menu navigate={navigate} panierCount={totalPanier} />
+        <Menu navigate={navigate} panierCount={totalPanier} hamburgerColor="white" />
         <img src="/logo.png" alt="LME" style={styles.logoImg} onError={e => e.target.style.display = 'none'} />
         <button style={styles.btnPanier} onClick={() => navigate('/panier')}>
-          🛒
+          {/* Icône panier SVG blanc */}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 01-8 0"/>
+          </svg>
           {totalPanier > 0 && <span style={styles.badge}>{totalPanier}</span>}
         </button>
       </div>
@@ -165,8 +170,18 @@ const styles = {
     padding: '1rem 1.25rem', zIndex: 20,
   },
   logoImg: { height: '36px', objectFit: 'contain', filter: 'brightness(0) invert(1)' },
-  btnPanier: { background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '38px', height: '38px', fontSize: '1.1rem', cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' },
-  badge: { position: 'absolute', top: '-3px', right: '-3px', background: 'var(--red)', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' },
+  btnPanier: {
+    background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+    width: '38px', height: '38px', cursor: 'pointer', position: 'relative',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    backdropFilter: 'blur(8px)',
+  },
+  badge: {
+    position: 'absolute', top: '-3px', right: '-3px',
+    background: 'var(--red)', color: 'white', borderRadius: '50%',
+    width: '16px', height: '16px', fontSize: '0.65rem',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700',
+  },
 
   hero: {
     position: 'relative', height: '280px',

@@ -129,16 +129,29 @@ async function genererPDF(client: any, lignes: any[], totalHT: number, totalPair
   page.drawText(`${(Number(totalHT) * 1.2).toFixed(2)} EUR`, { x: totauxX + 100, y: y + 2, size: 10, font: fontBold, color: blanc })
 
   // ── CONDITIONS ──
-  const condY = 45
-  page.drawLine({ start: { x: marginL, y: condY + 14 }, end: { x: width - marginR, y: condY + 14 }, thickness: 0.5, color: rgb(0.88, 0.85, 0.82) })
-  page.drawText('Franco de port à partir de 1 500 EUR HT  ·  Minimum : 10 paires  ·  Règlement à 30 jours fin de mois  ·  La validation sur l\'application vaut bon pour accord.', {
-    x: marginL, y: condY, size: 7, font: fontRegular, color: gris
+  const condY = 58
+  page.drawLine({
+    start: { x: marginL, y: condY + 14 },
+    end: { x: width - marginR, y: condY + 14 },
+    thickness: 0.5, color: rgb(0.88, 0.85, 0.82)
   })
+  page.drawText(
+    "Franco de port à partir de 1 500 EUR HT  ·  Minimum : 10 paires  ·  Règlement à 30 jours fin de mois  ·  La validation sur l'application vaut bon pour accord.",
+    { x: marginL, y: condY + 2, size: 7, font: fontRegular, color: gris }
+  )
 
-  // ── FOOTER ──
-  page.drawRectangle({ x: 0, y: 0, width, height: 25, color: beige })
-  page.drawText(`La Maison de l'Espadrille  ·  ${numeroCommande}  ·  ${date}`, {
-    x: marginL, y: 7, size: 7.5, font: fontRegular, color: gris
+  // ── FOOTER société ──
+  page.drawRectangle({ x: 0, y: 0, width, height: 38, color: beige })
+  page.drawText(
+    "SOCIÉTÉ LA MAISON DE L'ESPADRILLE — S.A.R.L. au capital de 150 000 euros — Siège social : 180 Chemin Pey de l'Ancre, 40660 MESSANGES",
+    { x: marginL, y: 24, size: 6.5, font: fontBold, color: gris }
+  )
+  page.drawText(
+    "RCS de Dax n° 344 100 284 00100  ·  N° TVA Intracommunautaire : FR 92 344 100 284  ·  contact@maisonespadrille.fr",
+    { x: marginL, y: 13, size: 6.5, font: fontRegular, color: gris }
+  )
+  page.drawText(`${numeroCommande}  ·  ${date}`, {
+    x: width - 160, y: 13, size: 6.5, font: fontRegular, color: gris
   })
 
   const pdfBytes = await pdfDoc.save()
@@ -192,6 +205,13 @@ serve(async (req) => {
             </table>
           </div>
           <p style="margin:12px 0 0;font-size:11px;color:#9B8B7A;text-align:center">Bon de commande détaillé en pièce jointe.</p>
+        </div>
+        <div style="padding:0 24px 16px;text-align:center">
+          <p style="font-size:9px;color:#9B8B7A;line-height:1.6;margin:0">
+            SOCIÉTÉ LA MAISON DE L'ESPADRILLE — S.A.R.L. au capital de 150 000 euros<br>
+            Siège social : 180 Chemin Pey de l'Ancre, 40660 MESSANGES<br>
+            RCS de Dax n° 344 100 284 00100 — TVA : FR 92 344 100 284
+          </p>
         </div>
       </div>
     `

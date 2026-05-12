@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 
-export default function Menu({ navigate, panierCount = 0 }) {
+export default function Menu({ navigate, panierCount = 0, hamburgerColor = 'white' }) {
   const [ouvert, setOuvert] = useState(false)
 
   const aller = (path) => {
@@ -21,15 +21,17 @@ export default function Menu({ navigate, panierCount = 0 }) {
     { path: '/panier', icon: '🛒', label: panierCount > 0 ? `Panier (${panierCount})` : 'Panier' },
     { path: '/historique', icon: '📋', label: 'Mes commandes' },
     { path: '/profil', icon: '👤', label: 'Mon profil' },
+    { path: '/mentions-legales', icon: '📄', label: 'Mentions légales' },
+    { path: '/cgv', icon: '📜', label: 'CGV' },
   ]
 
   return (
     <>
       {/* Bouton hamburger */}
       <button style={styles.hamburger} onClick={() => setOuvert(true)}>
-        <span style={styles.bar} />
-        <span style={styles.bar} />
-        <span style={styles.bar} />
+        <span style={{ ...styles.bar, background: hamburgerColor }} />
+        <span style={{ ...styles.bar, background: hamburgerColor }} />
+        <span style={{ ...styles.bar, background: hamburgerColor }} />
       </button>
 
       {/* Overlay */}
@@ -78,7 +80,8 @@ const styles = {
   },
   bar: {
     display: 'block', width: '20px', height: '1.5px',
-    background: 'var(--brown-dark)', borderRadius: '2px',
+    borderRadius: '2px',
+    // background est passé inline via la prop hamburgerColor
   },
   overlay: {
     position: 'fixed', inset: 0,
